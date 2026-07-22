@@ -1,0 +1,27 @@
+# Environments
+venv/
+.venv/
+env/
+
+# Environment variables
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local Devin / agent configuration
+.devin/
+
+# Installer / binaries
+*.exe
