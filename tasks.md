@@ -1,19 +1,18 @@
 # Dispatch Tasks
 
 ## Current
-- [ ] Week 2: SQL + Database Setup
-  - [ ] Start PostgreSQL (locally or via Docker)
-  - [ ] Create the customers, orders, and support_tickets schema from `project_plan.md`
-  - [ ] Write `data/seed_data.sql` with realistic sample data (50+ rows per table)
-  - [ ] Practice 10 representative queries against the data
+- [ ] Week 3: RAG Pipeline
+  - [ ] Install `chromadb` and an Ollama embedding model (e.g., `nomic-embed-text`)
+  - [ ] Create 10-15 markdown/text files in `data/documents/` simulating a company knowledge base
+  - [ ] Write `app/tools/retriever.py` to load, chunk, embed, and retrieve documents
+  - [ ] Combine retrieval with `llama3.1` to answer questions grounded in the documents
 
 ## Next
-- [ ] Write `app/tools/database.py` with connection, query, and safe parameterized execution functions
-- [ ] Week 3: RAG Pipeline
+- [ ] Index sample documents and test 5+ RAG questions
 - [ ] Week 4: LangGraph Fundamentals
+- [ ] Week 5: SQL Agent + Action Agent
 
 ## Backlog
-- Week 3: RAG Pipeline
 - Week 4: LangGraph Fundamentals
 - Week 5: SQL Agent + Action Agent
 - Week 6: Memory + Error Handling
@@ -28,10 +27,16 @@
 - [x] Week 1 Day 1-2: Python Refresher — functions, classes, decorators, type hints
 - [x] Week 1 Day 1-2: Async/await with asyncio and httpx
 - [x] Week 1 Day 1-2: Pydantic data validation
-- [x] Install Ollama locally and pull `llama3.1`
+- [x] Install Ollama locally, pull `llama3.1`, and clean up `llama3.2` / installer
 - [x] Add `experiments/04_basic_call.py` (Ollama basic call)
 - [x] Add `experiments/05_streaming.py` (streaming responses)
 - [x] Add `experiments/06_function_calling.py` (single tool call)
 - [x] Add `experiments/07_agent_with_tools.py` (multi-tool agent loop)
-- [x] Update project plan and README to use Ollama and remove external LLM API refs
+- [x] Update project plan, README, requirements, `.env.example` to use Ollama
 - [x] Initialize Git repository and commit Week 1 progress
+- [x] Week 2: SQL + Database Setup
+  - [x] Start PostgreSQL from EDB binaries locally
+  - [x] Create `customers`, `orders`, and `support_tickets` schema
+  - [x] Generate and load `data/seed_data.sql` (50+ rows per table)
+  - [x] Practice 10 representative queries in `data/practice_queries.sql`
+  - [x] Write `app/tools/database.py` with connection, query, and safe execution helpers

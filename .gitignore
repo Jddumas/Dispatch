@@ -25,3 +25,9 @@ Thumbs.db
 
 # Installer / binaries
 *.exe
+
+# Local PostgreSQL runtime files
+postgresql/
+pgdata/
+postgresql-binaries.zip
+*.zip
