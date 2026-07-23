@@ -31,3 +31,6 @@ postgresql/
 pgdata/
 postgresql-binaries.zip
 *.zip
+
+# ChromaDB vector store
+data/chroma/

@@ -1,19 +1,17 @@
 # Dispatch Tasks
 
 ## Current
-- [ ] Week 3: RAG Pipeline
-  - [ ] Install `chromadb` and an Ollama embedding model (e.g., `nomic-embed-text`)
-  - [ ] Create 10-15 markdown/text files in `data/documents/` simulating a company knowledge base
-  - [ ] Write `app/tools/retriever.py` to load, chunk, embed, and retrieve documents
-  - [ ] Combine retrieval with `llama3.1` to answer questions grounded in the documents
+- [ ] Week 4: LangGraph Fundamentals
+  - [ ] Install `langgraph` and sketch the multi-agent graph structure
+  - [ ] Build a simple state-machine graph: classify user intent -> route to SQL, RAG, or action node
+  - [ ] Write `experiments/09_langgraph_basics.py` to demonstrate the graph
 
 ## Next
-- [ ] Index sample documents and test 5+ RAG questions
-- [ ] Week 4: LangGraph Fundamentals
 - [ ] Week 5: SQL Agent + Action Agent
+- [ ] Week 6: Memory + Error Handling
+- [ ] Week 7: FastAPI Backend
 
 ## Backlog
-- Week 4: LangGraph Fundamentals
 - Week 5: SQL Agent + Action Agent
 - Week 6: Memory + Error Handling
 - Week 7: FastAPI Backend
@@ -27,7 +25,7 @@
 - [x] Week 1 Day 1-2: Python Refresher — functions, classes, decorators, type hints
 - [x] Week 1 Day 1-2: Async/await with asyncio and httpx
 - [x] Week 1 Day 1-2: Pydantic data validation
-- [x] Install Ollama locally, pull `llama3.1`, and clean up `llama3.2` / installer
+- [x] Install Ollama locally, pull `llama3.1` and `nomic-embed-text`, clean up `llama3.2`
 - [x] Add `experiments/04_basic_call.py` (Ollama basic call)
 - [x] Add `experiments/05_streaming.py` (streaming responses)
 - [x] Add `experiments/06_function_calling.py` (single tool call)
@@ -35,8 +33,8 @@
 - [x] Update project plan, README, requirements, `.env.example` to use Ollama
 - [x] Initialize Git repository and commit Week 1 progress
 - [x] Week 2: SQL + Database Setup
-  - [x] Start PostgreSQL from EDB binaries locally
-  - [x] Create `customers`, `orders`, and `support_tickets` schema
-  - [x] Generate and load `data/seed_data.sql` (50+ rows per table)
-  - [x] Practice 10 representative queries in `data/practice_queries.sql`
-  - [x] Write `app/tools/database.py` with connection, query, and safe execution helpers
+- [x] Week 3: RAG Pipeline
+  - [x] Install `chromadb` and pull `nomic-embed-text`
+  - [x] Create 13 knowledge base documents in `data/documents/`
+  - [x] Write `app/tools/retriever.py` with load, chunk, embed, retrieve, and answer helpers
+  - [x] Test `experiments/08_rag.py` with 6 grounded Q&A examples
