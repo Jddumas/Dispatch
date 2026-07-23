@@ -1,18 +1,17 @@
 # Dispatch Tasks
 
 ## Current
-- [ ] Week 4: LangGraph Fundamentals
-  - [ ] Install `langgraph` and sketch the multi-agent graph structure
-  - [ ] Build a simple state-machine graph: classify user intent -> route to SQL, RAG, or action node
-  - [ ] Write `experiments/09_langgraph_basics.py` to demonstrate the graph
+- [ ] Week 5: SQL Agent + Action Agent
+  - [ ] Design a robust SQL node that converts natural language to safe, parameterized SQL
+  - [ ] Add tool definitions and a ToolNode for real actions (e.g., get_weather, update_order_status)
+  - [ ] Integrate the SQL and action branches into the Week 4 graph
 
 ## Next
-- [ ] Week 5: SQL Agent + Action Agent
 - [ ] Week 6: Memory + Error Handling
 - [ ] Week 7: FastAPI Backend
+- [ ] Week 8: LangSmith Tracing + Evaluation
 
 ## Backlog
-- Week 5: SQL Agent + Action Agent
 - Week 6: Memory + Error Handling
 - Week 7: FastAPI Backend
 - Week 8: LangSmith Tracing + Evaluation
@@ -33,8 +32,18 @@
 - [x] Update project plan, README, requirements, `.env.example` to use Ollama
 - [x] Initialize Git repository and commit Week 1 progress
 - [x] Week 2: SQL + Database Setup
+  - [x] Start PostgreSQL from EDB binaries locally
+  - [x] Create `customers`, `orders`, and `support_tickets` schema
+  - [x] Generate and load `data/seed_data.sql` (50+ rows per table)
+  - [x] Practice 10 representative queries in `data/practice_queries.sql`
+  - [x] Write `app/tools/database.py` with connection, query, and safe execution helpers
 - [x] Week 3: RAG Pipeline
   - [x] Install `chromadb` and pull `nomic-embed-text`
   - [x] Create 13 knowledge base documents in `data/documents/`
   - [x] Write `app/tools/retriever.py` with load, chunk, embed, retrieve, and answer helpers
   - [x] Test `experiments/08_rag.py` with 6 grounded Q&A examples
+- [x] Week 4: LangGraph Fundamentals
+  - [x] Install `langgraph` and `langchain-ollama`
+  - [x] Build a state-machine graph that classifies intent and routes to SQL, RAG, action, or general nodes
+  - [x] Write `experiments/09_langgraph_basics.py`
+  - [x] Test the graph with 5 representative inputs
