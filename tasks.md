@@ -1,14 +1,11 @@
 # Dispatch Tasks
 
 ## Current
-- [ ] Week 9: Docker + Deployment
+- [ ] Week 10: Streamlit Frontend
 
 ## Next
-- [ ] Week 10: Streamlit Frontend
 - [ ] Week 11: Optimization + Polish
-
-## Backlog
-- Week 12: README + Blog + Apply
+- [ ] Week 12: README + Blog + Apply
 
 ## Done
 - [x] Week 1 Day 1-2: Python Refresher — functions, classes, decorators, type hints
@@ -60,3 +57,9 @@
   - [x] Create `eval/test_cases.json` with 20+ test cases
   - [x] Write `eval/run_eval.py` for intent, SQL, RAG, and action evaluation
   - [x] Run evaluation suite and save results JSON
+- [x] Week 9: Docker + Deployment
+  - [x] Write `Dockerfile` and `.dockerignore`
+  - [x] Write `docker-compose.yml` with PostgreSQL, ChromaDB, Ollama, and FastAPI app services
+  - [x] Update `app/tools/retriever.py` to use ChromaDB HttpClient in Docker
+  - [x] Add FastAPI lifespan to auto-index knowledge base if ChromaDB is empty
+  - [x] Update `.env.example` and `AGENTS.md` with Docker connection defaults
