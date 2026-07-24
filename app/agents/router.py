@@ -21,7 +21,7 @@ from app.config import CLASSIFY_MODEL, LLM_MODEL, MAX_INPUT_LENGTH, CHECKPOINT_D
 logger = logging.getLogger(__name__)
 
 ALLOWED_INTENTS = {"sql", "rag", "action", "general"}
-BLOCKED_KEYWORDS = ["hack", "exploit", "bypass", "password", "credit card"]
+BLOCKED_KEYWORDS = ["hack", "exploit", "bypass security", "sql injection", "inject sql"]
 
 _GRAPH = None
 _CHECKPOINTER = None
@@ -83,6 +83,13 @@ def classify_intent(state: AgentState) -> dict:
         "- general: greetings, small talk, or anything else\n\n"
         "Respond with exactly one lowercase word. Do not explain.\n"
         "Allowed responses: sql, rag, action, general\n\n"
+        "Examples:\n"
+        "- 'How many orders did John place last month?' -> sql\n"
+        "- 'What is your return policy?' -> rag\n"
+        "- 'How do I contact customer support?' -> rag\n"
+        "- 'Send an email to support@example.com saying the order is late' -> action\n"
+        "- 'What's the weather in Berlin?' -> action\n"
+        "- 'Hello!' -> general\n\n"
         f"Conversation history:\n{history}\n\n"
         f"Latest user message: {user_text}\n"
         "Intent:"

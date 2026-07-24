@@ -43,3 +43,6 @@ postgresql-binaries.zip
 
 # ChromaDB vector store
 data/chroma/
+
+# Evaluation outputs
+eval/results/

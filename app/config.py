@@ -18,17 +18,25 @@ class _Settings(BaseSettings):
         extra="ignore",
     )
 
+    # LLM settings
     llm_model: str = Field(default="llama3.1", alias="LLM_MODEL")
     classify_model: str | None = Field(default=None, alias="CLASSIFY_MODEL")
     embed_model: str = Field(default="nomic-embed-text", alias="EMBED_MODEL")
     ollama_host: str = Field(default="http://localhost:11434", alias="OLLAMA_HOST")
 
+    # Persistence and guardrails
     checkpoint_db: str = Field(default="data/checkpoints.sqlite", alias="CHECKPOINT_DB")
     max_input_length: int = Field(default=2000, alias="MAX_INPUT_LENGTH")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
 
+    # FastAPI settings
     api_rate_limit: str = Field(default="10/minute", alias="API_RATE_LIMIT")
     cors_origins: str = Field(default="*", alias="CORS_ORIGINS")
+
+    # LangSmith tracing
+    langchain_tracing_v2: bool = Field(default=False, alias="LANGCHAIN_TRACING_V2")
+    langchain_api_key: str | None = Field(default=None, alias="LANGCHAIN_API_KEY")
+    langchain_project: str = Field(default="dispatch-ai", alias="LANGCHAIN_PROJECT")
 
 
 settings = _Settings()
@@ -44,6 +52,14 @@ MAX_INPUT_LENGTH = settings.max_input_length
 
 API_RATE_LIMIT = settings.api_rate_limit
 CORS_ORIGINS = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
+
+# Propagate LangSmith settings to the environment so LangChain tracers pick them up.
+if settings.langchain_api_key:
+    os.environ.setdefault("LANGCHAIN_API_KEY", settings.langchain_api_key)
+if settings.langchain_project:
+    os.environ.setdefault("LANGCHAIN_PROJECT", settings.langchain_project)
+if settings.langchain_tracing_v2:
+    os.environ.setdefault("LANGCHAIN_TRACING_V2", "true")
 
 
 def setup_logging(level: int | str | None = None) -> None:

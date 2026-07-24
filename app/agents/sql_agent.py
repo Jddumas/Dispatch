@@ -170,9 +170,13 @@ def sql_node(state: AgentState) -> dict[str, str]:
     question = last_human_message(state)
     try:
         result = run_sql_agent(question, messages=state["messages"])
-        return {"result": result["answer"]}
+        return {
+            "result": result["answer"],
+            "sql_query": result.get("query", ""),
+        }
     except Exception as exc:  # noqa: BLE001
         logger.exception("SQL agent node failed: %s", exc)
         return {
-            "result": "I couldn't query the database right now. Please try again later."
+            "result": "I couldn't query the database right now. Please try again later.",
+            "sql_query": "",
         }

@@ -1,7 +1,7 @@
 # Dispatch Tasks
 
 ## Current
-- [ ] Week 8: LangSmith Tracing + Evaluation
+- [ ] Commit Week 8 changes
 
 ## Next
 - [ ] Week 9: Docker + Deployment

@@ -1,0 +1,159 @@
+[
+  {
+    "id": "sql-01",
+    "input": "How many orders were placed last month?",
+    "expected_intent": "sql",
+    "category": "sql",
+    "expected_keywords": ["2"],
+    "expected_query_keywords": ["SELECT", "COUNT", "orders"]
+  },
+  {
+    "id": "sql-02",
+    "input": "Which customer has the most support tickets?",
+    "expected_intent": "sql",
+    "category": "sql",
+    "expected_keywords": ["Emma"],
+    "expected_query_keywords": ["SELECT", "support_tickets", "GROUP BY"]
+  },
+  {
+    "id": "sql-03",
+    "input": "How many customers do we have?",
+    "expected_intent": "sql",
+    "category": "sql",
+    "expected_keywords": ["50"],
+    "expected_query_keywords": ["SELECT", "COUNT", "customers"]
+  },
+  {
+    "id": "sql-04",
+    "input": "List all orders with status 'shipped'.",
+    "expected_intent": "sql",
+    "category": "sql",
+    "expected_keywords": ["shipped"],
+    "expected_query_keywords": ["SELECT", "orders", "shipped"]
+  },
+  {
+    "id": "sql-05",
+    "input": "How many open support tickets are there?",
+    "expected_intent": "sql",
+    "category": "sql",
+    "expected_keywords": ["open"],
+    "expected_query_keywords": ["SELECT", "COUNT", "support_tickets", "open"]
+  },
+  {
+    "id": "rag-01",
+    "input": "What is the return policy?",
+    "expected_intent": "rag",
+    "category": "rag",
+    "expected_keywords": ["30 days", "refund"],
+    "expected_sources": ["Returns"]
+  },
+  {
+    "id": "rag-02",
+    "input": "Can I return a digital download?",
+    "expected_intent": "rag",
+    "category": "rag",
+    "expected_keywords": ["digital downloads", "cannot be returned"],
+    "expected_sources": ["Returns"]
+  },
+  {
+    "id": "rag-03",
+    "input": "How do I contact support?",
+    "expected_intent": "rag",
+    "category": "rag",
+    "expected_keywords": ["support"],
+    "expected_sources": ["Contact Support"]
+  },
+  {
+    "id": "rag-04",
+    "input": "What are your shipping options?",
+    "expected_intent": "rag",
+    "category": "rag",
+    "expected_keywords": ["shipping"],
+    "expected_sources": ["Shipping"]
+  },
+  {
+    "id": "rag-05",
+    "input": "What is covered by the warranty?",
+    "expected_intent": "rag",
+    "category": "rag",
+    "expected_keywords": ["warranty"],
+    "expected_sources": ["Warranty"]
+  },
+  {
+    "id": "rag-06",
+    "input": "How do I reset my password?",
+    "expected_intent": "rag",
+    "category": "rag",
+    "expected_keywords": ["password", "reset"],
+    "expected_sources": ["Password Reset"]
+  },
+  {
+    "id": "rag-07",
+    "input": "What items cannot be returned?",
+    "expected_intent": "rag",
+    "category": "rag",
+    "expected_keywords": ["final sale", "digital downloads"],
+    "expected_sources": ["Returns"]
+  },
+  {
+    "id": "action-01",
+    "input": "What is the weather in Paris?",
+    "expected_intent": "action",
+    "category": "action",
+    "expected_keywords": ["weather", "Paris"],
+    "expected_tool": "get_weather"
+  },
+  {
+    "id": "action-02",
+    "input": "What is the weather in Tokyo?",
+    "expected_intent": "action",
+    "category": "action",
+    "expected_keywords": ["weather", "Tokyo"],
+    "expected_tool": "get_weather"
+  },
+  {
+    "id": "action-03",
+    "input": "Send a notification to alice@example.com saying your order has shipped",
+    "expected_intent": "action",
+    "category": "action",
+    "expected_keywords": ["alice@example.com", "shipped"],
+    "expected_tool": "send_notification"
+  },
+  {
+    "id": "action-04",
+    "input": "Create a support ticket for customer 2 about order 3, subject 'Damaged item'",
+    "expected_intent": "action",
+    "category": "action",
+    "expected_keywords": ["Created", "customer 2"],
+    "expected_tool": "create_support_ticket"
+  },
+  {
+    "id": "action-05",
+    "input": "Notify support@example.com about a refund request",
+    "expected_intent": "action",
+    "category": "action",
+    "expected_keywords": ["support@example.com", "refund"],
+    "expected_tool": "send_notification"
+  },
+  {
+    "id": "general-01",
+    "input": "Hello!",
+    "expected_intent": "general",
+    "category": "general",
+    "expected_keywords": ["Hello", "assist"]
+  },
+  {
+    "id": "general-02",
+    "input": "Who are you?",
+    "expected_intent": "general",
+    "category": "general",
+    "expected_keywords": ["support", "assistant"]
+  },
+  {
+    "id": "general-03",
+    "input": "Thank you!",
+    "expected_intent": "general",
+    "category": "general",
+    "expected_keywords": ["welcome", "help"]
+  }
+]

@@ -12,6 +12,7 @@ class AgentState(TypedDict):
     intent: str
     result: str
     sources: list[str]
+    sql_query: str
 
 
 def last_human_message(state: AgentState) -> str:
