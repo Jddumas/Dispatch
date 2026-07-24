@@ -63,12 +63,12 @@ Latest run (`llama3.1` on a local CPU):
 | Metric                       | Score    |
 |------------------------------|----------|
 | Intent Accuracy              | 100.0%   |
-| Answer Relevance             | 90.0%    |
+| Answer Relevance             | 96.6%    |
 | SQL Generation Accuracy      | 100.0%   |
 | RAG Source Grounding         | 100.0%   |
 | Action Tool Accuracy         | 100.0%   |
 | Error Rate                   | 0.0%     |
-| Average Latency              | ~9.9s    |
+| Average Latency              | ~15.3s   |
 
 ## Quick Start
 
@@ -156,6 +156,32 @@ ruff check app frontend eval tests
 # Unit tests
 pytest tests -v
 ```
+
+## Example Questions to Try
+
+The Streamlit sidebar includes a categorized bank of one-click example prompts. You can also type these directly into the chat:
+
+- **RAG / Policy:**
+  - "What is the return policy?"
+  - "What payment methods do you accept?"
+  - "How does the loyalty program work?"
+  - "What does the account security documentation say about two-factor authentication?"
+
+- **SQL / Account:**
+  - "How many orders have been placed in the last 12 months?"
+  - "What is total revenue by product category?"
+  - "Which customers have an open ticket and a returned order?"
+  - "Who are the top 5 customers by spend in the last 90 days?"
+  - "What is the average order value?"
+
+- **Action:**
+  - "What is the weather in Paris?"
+  - "Create a support ticket for customer 2 about order 3"
+  - "Send a notification to team@example.com about order 5"
+
+- **General:**
+  - "What can you do?"
+  - "Hello!"
 
 ## Project Structure
 

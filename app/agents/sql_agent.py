@@ -38,12 +38,22 @@ _FORBIDDEN_KEYWORDS = [
 _SCHEMA_PROMPT = """You have access to a PostgreSQL database with these tables:
 
 customers (id, name, email, created_at)
+products (id, name, category, price, stock_quantity)
 orders (id, customer_id, product_name, status, total, created_at)
+order_items (id, order_id, product_id, quantity, unit_price, line_total)
+payments (id, order_id, amount, method, status, created_at)
+shipping (id, order_id, carrier, tracking_number, status, shipped_at, delivered_at)
+refunds (id, order_id, amount, reason, status, created_at)
 support_tickets (id, customer_id, order_id, subject, description, status, created_at)
+account_notes (id, customer_id, note, created_at)
 
-Write a SQL query to answer the user's question.
+Join tables using their integer id columns (e.g. customers.id = orders.customer_id).
+Use aggregate functions like COUNT, SUM, AVG, MIN, MAX and GROUP BY when the question asks for totals, averages, counts, or "per X".
+Use DATE_TRUNC('month', created_at) to group by month.
+Filter by date with created_at >= NOW() - INTERVAL '30 days' for recent time windows.
+Use ILIKE with customer names when matching by name is needed.
 Return ONLY the SQL query, nothing else.
-Only use SELECT statements.
+Only use SELECT or WITH statements.
 Do not use a trailing semicolon.
 """
 
@@ -89,8 +99,8 @@ def _is_safe(sql: str) -> tuple[bool, str]:
         return False, "The generated query is empty."
 
     tokens = cleaned.split()
-    if not tokens or tokens[0] != "select":
-        return False, "Only SELECT statements are allowed."
+    if not tokens or tokens[0] not in ("select", "with"):
+        return False, "Only SELECT or WITH statements are allowed."
 
     # Allow one trailing semicolon, but reject additional statement separators.
     neutral = _remove_string_literals(cleaned).rstrip(";")
@@ -107,7 +117,7 @@ def _is_safe(sql: str) -> tuple[bool, str]:
 def _generate_sql(question: str, history: str = "") -> str:
     history_section = f"Conversation history:\n{history}\n\n" if history else ""
     llm = (
-        ChatOllama(model=LLM_MODEL, temperature=0.0, num_predict=200)
+        ChatOllama(model=LLM_MODEL, temperature=0.0, num_predict=400)
         .with_retry(stop_after_attempt=3, wait_exponential_jitter=True)
     )
     messages = [

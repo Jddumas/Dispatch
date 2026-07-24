@@ -1,5 +1,22 @@
 # Dispatch Tasks
 
+## Current
+- [ ] Week 13 Day 4: re-run the evaluation suite with the new complex cases and commit the Week 13 changes
+- [ ] Week 13 Day 4: update README evaluation results and example questions once the new eval run completes
+
+## Next
+- [ ] Deploy the stack and replace placeholder Live Demo URLs in README.md
+- [ ] Publish docs/blog_post.md and add the link to README.md
+- [ ] Capture screenshots and verify the deployed demo end-to-end
+
+## Backlog
+- Record a repeatable demo script for the richer question bank
+- Add mixed-intent conversation flows that chain RAG + SQL + action
+- Swap in an alternative local model (qwen2.5, phi4) to show multi-LLM experience
+- Try a second agent framework (smolagents, CrewAI) and write a comparison blog post
+- Harden production SQL: read-only DB user + query whitelisting
+- Add a semantic answer-relevance scorer to the eval suite
+
 ## Done
 - [x] Week 1 Day 1-2: Python Refresher — functions, classes, decorators, type hints
 - [x] Week 1 Day 1-2: Async/await with asyncio and httpx
@@ -74,8 +91,8 @@
   - [x] Update `AGENTS.md` with final commands and key files
   - [x] Final lint and test verification
   - [x] Commit all changes
-
-## Post-Plan Ideas
-- Try a different local model (qwen2.5, phi4) as an alternative LLM.
-- Experiment with another agent framework (smolagents, CrewAI) for comparison.
-- Add a second blog post comparing LangGraph to another framework.
+- [x] Week 13 Day 1: expand `data/seed_data.sql` with products, order_items, payments, shipping, refunds, and account notes
+- [x] Week 13 Day 1: add RAG documents for billing, loyalty, account security, and subscriptions; re-index ChromaDB
+- [x] Week 13 Day 2: add a categorized, clickable example-question bank to the Streamlit sidebar
+- [x] Week 13 Day 3: update `app/agents/sql_agent.py` schema prompt for joins/aggregations and allow WITH statements
+- [x] Week 13 Day 3: add complex SQL and new RAG/general test cases to `eval/test_cases.json`

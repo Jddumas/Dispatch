@@ -31,14 +31,37 @@ with st.sidebar:
     st.markdown("---")
 
     st.subheader("Example questions")
-    examples = [
-        "What is the return policy?",
-        "How many orders were placed last month?",
-        "What is the weather in Paris?",
-        "Create a support ticket for customer 2 about order 3",
-    ]
-    for ex in examples:
-        st.markdown(f"- *{ex}*")
+    example_questions = {
+        "RAG / Policy": [
+            "What is the return policy?",
+            "How do I reset my password?",
+            "What payment methods do you accept?",
+            "How does the loyalty program work?",
+            "What is the Subscribe & Save discount?",
+        ],
+        "SQL / Account": [
+            "How many orders were placed last month?",
+            "What is total revenue by product category?",
+            "Which customers have an open ticket and a returned order?",
+            "Who are the top 5 customers by spend in the last 90 days?",
+            "What is the average order value?",
+        ],
+        "Action": [
+            "What is the weather in Paris?",
+            "Create a support ticket for customer 2 about order 3",
+            "Send a notification to team@example.com about order 5",
+        ],
+        "General": [
+            "What can you do?",
+            "Hello!",
+        ],
+    }
+    for category, questions in example_questions.items():
+        with st.expander(category, expanded=False):
+            for i, q in enumerate(questions):
+                if st.button(q, key=f"example_{category}_{i}", use_container_width=True):
+                    st.session_state.pending_prompt = q
+                    st.rerun()
     st.markdown("---")
 
     session_id = st.text_input("Session ID", value="streamlit_user", key="session_id_input")
@@ -141,7 +164,11 @@ def _handle_sync_response(prompt: str, session_id: str) -> tuple[str, str, list[
     return reply, intent, sources
 
 
-if prompt := st.chat_input("Ask me anything..."):
+prompt = st.chat_input("Ask me anything...")
+if not prompt and st.session_state.get("pending_prompt"):
+    prompt = st.session_state.pop("pending_prompt")
+
+if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.write(prompt)

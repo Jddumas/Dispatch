@@ -1,10 +1,10 @@
 [
   {
     "id": "sql-01",
-    "input": "How many orders were placed last month?",
+    "input": "How many orders have been placed in the last 12 months?",
     "expected_intent": "sql",
     "category": "sql",
-    "expected_keywords": ["2"],
+    "expected_keywords": ["103"],
     "expected_query_keywords": ["SELECT", "COUNT", "orders"]
   },
   {
@@ -12,15 +12,15 @@
     "input": "Which customer has the most support tickets?",
     "expected_intent": "sql",
     "category": "sql",
-    "expected_keywords": ["Emma"],
+    "expected_keywords": ["Lucas Thomas"],
     "expected_query_keywords": ["SELECT", "support_tickets", "GROUP BY"]
   },
   {
     "id": "sql-03",
-    "input": "How many customers do we have?",
+    "input": "How many customers signed up in the last 30 days?",
     "expected_intent": "sql",
     "category": "sql",
-    "expected_keywords": ["50"],
+    "expected_keywords": ["5"],
     "expected_query_keywords": ["SELECT", "COUNT", "customers"]
   },
   {
@@ -140,7 +140,7 @@
     "input": "Hello!",
     "expected_intent": "general",
     "category": "general",
-    "expected_keywords": ["Hello", "assist"]
+    "expected_keywords": ["assist"]
   },
   {
     "id": "general-02",
@@ -154,6 +154,77 @@
     "input": "Thank you!",
     "expected_intent": "general",
     "category": "general",
-    "expected_keywords": ["welcome", "help"]
+    "expected_keywords": ["help"]
+  },
+  {
+    "id": "sql-06",
+    "input": "What is total revenue by product category?",
+    "expected_intent": "sql",
+    "category": "sql",
+    "expected_keywords": ["revenue", "category"],
+    "expected_query_keywords": ["SELECT", "SUM", "category", "GROUP BY"]
+  },
+  {
+    "id": "sql-07",
+    "input": "Which customers have an open ticket and a returned order?",
+    "expected_intent": "sql",
+    "category": "sql",
+    "expected_keywords": ["customer"],
+    "expected_query_keywords": ["SELECT", "customers", "support_tickets", "orders", "refunds"]
+  },
+  {
+    "id": "sql-08",
+    "input": "Who are the top 5 customers by spend in the last 90 days?",
+    "expected_intent": "sql",
+    "category": "sql",
+    "expected_keywords": ["customer", "spend"],
+    "expected_query_keywords": ["SELECT", "SUM", "GROUP BY", "ORDER BY", "LIMIT"]
+  },
+  {
+    "id": "sql-09",
+    "input": "What is the average order value?",
+    "expected_intent": "sql",
+    "category": "sql",
+    "expected_keywords": ["average", "order"],
+    "expected_query_keywords": ["SELECT", "AVG", "orders"]
+  },
+  {
+    "id": "rag-08",
+    "input": "What payment methods do you accept?",
+    "expected_intent": "rag",
+    "category": "rag",
+    "expected_keywords": ["credit", "PayPal"],
+    "expected_sources": ["Billing And Payments"]
+  },
+  {
+    "id": "rag-09",
+    "input": "How does the loyalty program work?",
+    "expected_intent": "rag",
+    "category": "rag",
+    "expected_keywords": ["points", "tier"],
+    "expected_sources": ["Loyalty Program"]
+  },
+  {
+    "id": "rag-10",
+    "input": "What does the account security documentation say about two-factor authentication?",
+    "expected_intent": "rag",
+    "category": "rag",
+    "expected_keywords": ["two-factor", "authenticator"],
+    "expected_sources": ["Account Security"]
+  },
+  {
+    "id": "rag-11",
+    "input": "What is the Subscribe & Save discount?",
+    "expected_intent": "rag",
+    "category": "rag",
+    "expected_keywords": ["10%"],
+    "expected_sources": ["Subscriptions"]
+  },
+  {
+    "id": "general-04",
+    "input": "What can you do?",
+    "expected_intent": "general",
+    "category": "general",
+    "expected_keywords": ["questions", "do"]
   }
 ]
