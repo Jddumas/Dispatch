@@ -15,8 +15,7 @@ from app.agents.action_agent import action_node
 from app.agents.rag_agent import rag_node
 from app.agents.sql_agent import sql_node
 from app.agents.state import AgentState, last_human_message
-from app.config import CLASSIFY_MODEL, LLM_MODEL, MAX_INPUT_LENGTH, CHECKPOINT_DB
-
+from app.config import CHECKPOINT_DB, CLASSIFY_MODEL, LLM_MODEL, MAX_INPUT_LENGTH
 
 logger = logging.getLogger(__name__)
 
@@ -107,8 +106,8 @@ def classify_intent(state: AgentState) -> dict:
         if intent not in ALLOWED_INTENTS:
             intent = "general"
         logger.info("Classified intent: %s", intent)
-    except Exception as exc:
-        logger.exception("Intent classification failed: %s", exc)
+    except Exception:
+        logger.exception("Intent classification failed")
         intent = "general"
 
     return {"intent": intent}
@@ -137,8 +136,8 @@ def general_node(state: AgentState) -> dict:
             ]
         )
         return {"result": response.content}
-    except Exception as exc:
-        logger.exception("General node failed: %s", exc)
+    except Exception:
+        logger.exception("General node failed")
         return {"result": "I'm having trouble responding right now. Please try again."}
 
 

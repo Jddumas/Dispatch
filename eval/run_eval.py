@@ -15,7 +15,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.agents import run_agent, setup_logging
 from app.config import LLM_MODEL
 
-
 logger = logging.getLogger(__name__)
 
 CASES_PATH = Path(__file__).parent / "test_cases.json"
@@ -110,9 +109,9 @@ def evaluate_case(case: dict) -> dict:
             "tool_ok": tool_ok,
             "error": None,
         }
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         latency = time.perf_counter() - start
-        logger.exception("[%s] failed: %s", case_id, exc)
+        logger.exception("[%s] failed", case_id)
         return {
             "id": case_id,
             "input": case["input"],

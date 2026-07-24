@@ -13,7 +13,6 @@ from app.agents.state import AgentState, last_human_message
 from app.config import LLM_MODEL
 from app.tools import database
 
-
 logger = logging.getLogger(__name__)
 
 _FORBIDDEN_KEYWORDS = [
@@ -153,8 +152,8 @@ def run_sql_agent(question: str, messages: list[BaseMessage] | None = None) -> d
 
     try:
         rows = database.execute_query_safe(query)
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("Database query failed: %s", exc)
+    except Exception as exc:
+        logger.exception("Database query failed")
         return {
             "query": query,
             "error": str(exc),
@@ -174,8 +173,8 @@ def sql_node(state: AgentState) -> dict[str, str]:
             "result": result["answer"],
             "sql_query": result.get("query", ""),
         }
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("SQL agent node failed: %s", exc)
+    except Exception:
+        logger.exception("SQL agent node failed")
         return {
             "result": "I couldn't query the database right now. Please try again later.",
             "sql_query": "",

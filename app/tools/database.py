@@ -6,7 +6,6 @@ from typing import Any
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-
 CONNECTION_ARGS = {
     "host": os.getenv("PGHOST", "localhost"),
     "port": int(os.getenv("PGPORT", "5432")),
@@ -28,13 +27,12 @@ def execute_query(
 
     Parameters are safely passed to psycopg2 to prevent SQL injection.
     """
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(query, params)
-            if fetch:
-                return cur.fetchall()
-            conn.commit()
-            return cur.rowcount
+    with get_connection() as conn, conn.cursor() as cur:
+        cur.execute(query, params)
+        if fetch:
+            return cur.fetchall()
+        conn.commit()
+        return cur.rowcount
 
 
 def execute_query_safe(

@@ -5,7 +5,6 @@ import logging
 from app.agents.state import AgentState, last_human_message
 from app.tools import retriever
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -30,8 +29,8 @@ def rag_node(state: AgentState) -> dict[str, str]:
             "result": answer["answer"],
             "sources": _extract_sources(answer.get("matches", [])),
         }
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("RAG agent failed: %s", exc)
+    except Exception:
+        logger.exception("RAG agent failed")
         return {
             "result": "I couldn't look up that information right now. Please try again later.",
             "sources": [],

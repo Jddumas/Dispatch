@@ -32,6 +32,7 @@ class _Settings(BaseSettings):
     # FastAPI settings
     api_rate_limit: str = Field(default="10/minute", alias="API_RATE_LIMIT")
     cors_origins: str = Field(default="*", alias="CORS_ORIGINS")
+    token_cost_per_1k: float = Field(default=0.0, alias="TOKEN_COST_PER_1K")
 
     # LangSmith tracing
     langchain_tracing_v2: bool = Field(default=False, alias="LANGCHAIN_TRACING_V2")
@@ -52,6 +53,7 @@ MAX_INPUT_LENGTH = settings.max_input_length
 
 API_RATE_LIMIT = settings.api_rate_limit
 CORS_ORIGINS = [origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()]
+TOKEN_COST_PER_1K = settings.token_cost_per_1k
 
 # Propagate LangSmith settings to the environment so LangChain tracers pick them up.
 if settings.langchain_api_key:

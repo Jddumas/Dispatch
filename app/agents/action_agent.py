@@ -11,7 +11,6 @@ from app.agents.state import AgentState, last_human_message
 from app.config import LLM_MODEL
 from app.tools import api_client
 
-
 logger = logging.getLogger(__name__)
 
 TOOLS = [
@@ -36,8 +35,8 @@ def _execute_tool(tool_call: dict) -> ToolMessage:
     tool = tool_map[name]
     try:
         result = tool.invoke(args)
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("Tool %s failed: %s", name, exc)
+    except Exception as exc:
+        logger.exception("Tool %s failed", name)
         result = f"Tool error: {exc}"
 
     return ToolMessage(content=str(result), tool_call_id=tool_call["id"])
@@ -73,8 +72,8 @@ def run_action_agent(question: str) -> dict[str, str]:
         if len(results) == 1:
             return {"answer": results[0]}
         return {"answer": "\n\n".join(f"- {r}" for r in results)}
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("Action agent failed: %s", exc)
+    except Exception:
+        logger.exception("Action agent failed")
         return {"answer": "I couldn't complete that action right now. Please try again later."}
 
 

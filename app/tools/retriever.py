@@ -9,12 +9,13 @@ from typing import Any
 import chromadb
 import ollama
 
+DOCUMENTS_DIR = Path(__file__).resolve().parents[2] / "data" / "documents"
+CHROMA_DIR = Path(__file__).resolve().parents[2] / "data" / "chroma"
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DOCUMENTS_DIR = PROJECT_ROOT / "data" / "documents"
-CHROMA_DIR = PROJECT_ROOT / "data" / "chroma"
 
 EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text")
+
+
 LLM_MODEL = os.getenv("LLM_MODEL", "llama3.1")
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "800"))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "100"))
@@ -55,7 +56,7 @@ def _load_markdown_documents(directory: Path = DOCUMENTS_DIR) -> list[dict[str, 
         text = file_path.read_text(encoding="utf-8")
         documents.append(
             {
-                "source": str(file_path.relative_to(PROJECT_ROOT)),
+                "source": str(file_path.relative_to(directory)),
                 "title": file_path.stem.replace("-", " ").title(),
                 "text": text,
             }
@@ -119,7 +120,7 @@ def index_documents() -> int:
         metadata={"hnsw:space": "cosine"},
     )
 
-    documents = _load_markdown_documents()
+    documents = _load_markdown_documents(DOCUMENTS_DIR)
     chunks = _chunk_documents(documents)
 
     if not chunks:
