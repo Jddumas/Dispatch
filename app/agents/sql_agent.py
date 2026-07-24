@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+from decimal import Decimal
 from typing import Any
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
@@ -128,7 +129,103 @@ def _generate_sql(question: str, history: str = "") -> str:
     return _extract_sql(response.content)
 
 
+def _format_value(value: Any) -> str:
+    if value is None:
+        return "N/A"
+    if isinstance(value, Decimal):
+        value = float(value)
+    if isinstance(value, float):
+        return f"${value:,.2f}" if value > 1 else f"{value:.2f}"
+    return str(value)
+
+
+def _clean_question(question: str) -> str:
+    """Strip question words so the remainder can be used in a statement."""
+    q = question.lower().strip().rstrip(".?")
+    prefixes = [
+        "how many", "what is", "what are", "who are", "which",
+        "list", "show", "give me", "find", "tell me",
+    ]
+    for prefix in prefixes:
+        if q.startswith(prefix):
+            q = q[len(prefix):].strip()
+            break
+    suffixes = ["are there", "do we have", "is there", "are they", "are the"]
+    for suffix in suffixes:
+        if q.endswith(suffix):
+            q = q[: -len(suffix)].strip()
+            break
+    # Remove common leading articles and perfect-tense participles.
+    for fragment in ("the ", "a ", "an ", "have been ", "has been "):
+        if q.startswith(fragment):
+            q = q[len(fragment):].strip()
+    # Drop "have been" / "has been" anywhere in the phrase for cleaner statements.
+    q = q.replace(" have been ", " ").replace(" has been ", " ")
+    return q
+
+
+def _format_sql_answer(question: str, rows: list[dict[str, Any]]) -> str:
+    """Format SQL rows into a concise answer without a second LLM call."""
+    if not rows:
+        return "No results found."
+
+    q = question.lower()
+    cleaned = _clean_question(question)
+    keys = list(rows[0].keys())
+
+    # Count / how-many queries
+    if "how many" in q or "number of" in q or (len(keys) == 1 and ("count" in keys[0].lower() or "total" in keys[0].lower())):
+        if len(rows) == 1:
+            value = rows[0][keys[0]]
+            return f"There are {_format_value(value)} {cleaned}."
+        return f"There are {len(rows)} {cleaned}."
+
+    # Average / aggregate single-value queries
+    if "average" in q or "avg" in q or "mean" in q:
+        value = rows[0][keys[-1]]
+        return f"The {cleaned} is {_format_value(value)}."
+
+    # Most / highest / top / max
+    if "most" in q or "highest" in q or "top" in q or "max" in q:
+        if len(rows) == 1:
+            label = rows[0].get(keys[0], "")
+            value = rows[0].get(keys[-1], "")
+            phrase = cleaned.replace(" has the ", " with the ")
+            if len(keys) == 1:
+                return f"The {phrase} is {label}."
+            return f"The {phrase} is {label} ({_format_value(value)})."
+        parts = []
+        for row in rows:
+            label = row.get(keys[0], "")
+            value = row.get(keys[-1], "")
+            parts.append(f"{label} ({_format_value(value)})")
+        return f"The top results for {cleaned}: {', '.join(parts)}."
+
+    # Grouped / per / by queries
+    if " by " in q or " per " in q or q.startswith(("what is total", "total")):
+        parts = []
+        for row in rows:
+            label = row.get(keys[0], "")
+            value = row.get(keys[-1], "")
+            parts.append(f"{label}: {_format_value(value)}")
+        return f"The {cleaned}: {'; '.join(parts)}."
+
+    # Single record lookup
+    if len(rows) == 1:
+        pairs = [f"{k} = {_format_value(v)}" for k, v in rows[0].items()]
+        return f"The result is {', '.join(pairs)}."
+
+    # General list
+    preview = rows[:5]
+    parts = []
+    for row in preview:
+        pairs = [f"{k}={_format_value(v)}" for k, v in row.items()]
+        parts.append(", ".join(pairs))
+    return f'Found {len(rows)} records matching "{cleaned}". {" | ".join(parts)}.'
+
+
 def _format_answer(question: str, query: str, rows: list[dict[str, Any]]) -> str:
+    """LLM-based fallback for unusual or very large result sets."""
     if not rows:
         return "No results found."
 
@@ -170,7 +267,7 @@ def run_sql_agent(question: str, messages: list[BaseMessage] | None = None) -> d
             "answer": f"Database error: {exc}",
         }
 
-    answer = _format_answer(question, query, rows)
+    answer = _format_sql_answer(question, rows)
     return {"query": query, "rows": rows, "answer": answer}
 
 

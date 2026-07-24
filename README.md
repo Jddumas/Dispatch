@@ -68,7 +68,7 @@ Latest run (`llama3.1` on a local CPU):
 | RAG Source Grounding         | 100.0%   |
 | Action Tool Accuracy         | 100.0%   |
 | Error Rate                   | 0.0%     |
-| Average Latency              | ~15.3s   |
+| Average Latency              | ~10.6s   |
 
 ## Quick Start
 
@@ -168,7 +168,7 @@ The Streamlit sidebar includes a categorized bank of one-click example prompts. 
   - "What does the account security documentation say about two-factor authentication?"
 
 - **SQL / Account:**
-  - "How many orders have been placed in the last 12 months?"
+  - "How many orders are there?"
   - "What is total revenue by product category?"
   - "Which customers have an open ticket and a returned order?"
   - "Who are the top 5 customers by spend in the last 90 days?"
