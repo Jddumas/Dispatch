@@ -196,6 +196,19 @@ def run_agent(question: str, thread_id: str = "default") -> AgentState:
     )
 
 
+def get_thread_history(thread_id: str) -> list[dict[str, str]]:
+    """Return the message history for a given thread_id."""
+    graph = get_graph()
+    snapshot = graph.get_state(config={"configurable": {"thread_id": thread_id}})
+    if not snapshot:
+        return []
+    messages = snapshot.values.get("messages", [])
+    return [
+        {"role": "user" if isinstance(m, HumanMessage) else "assistant", "content": m.content}
+        for m in messages
+    ]
+
+
 if __name__ == "__main__":
     from app.config import setup_logging
     setup_logging()

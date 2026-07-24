@@ -1,7 +1,7 @@
 # Dispatch Tasks
 
 ## Current
-- [ ] Week 7: FastAPI Backend
+- [ ] Commit Week 7 changes
 
 ## Next
 - [ ] Week 8: LangSmith Tracing + Evaluation

@@ -11,6 +11,7 @@ class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
     intent: str
     result: str
+    sources: list[str]
 
 
 def last_human_message(state: AgentState) -> str:

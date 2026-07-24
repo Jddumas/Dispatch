@@ -10,6 +10,7 @@
   - Stop: `.\pgsql\pgsql\bin\pg_ctl.exe -D "$PWD\pgsql\data" stop`
   - The `support_agent` database, `agent` user, and seeded tables are already created.
 - Conversation state is persisted in `data/checkpoints.sqlite` using LangGraph's `SqliteSaver`. Use a consistent `thread_id` for multi-turn conversations; see `experiments/11_week6_memory.py`.
+- FastAPI backend lives in `app/main.py`. Start it with `.\venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000` and test with curl/httpx against `/health`, `/chat`, `/chat/stream`, and `/sessions/{session_id}/history`.
 
 ## Reporting Requirement
 After completing each task or group of related tasks, produce a **detailed report** that includes:

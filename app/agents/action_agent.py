@@ -46,11 +46,10 @@ def _execute_tool(tool_call: dict) -> ToolMessage:
 def run_action_agent(question: str) -> dict[str, str]:
     """Use LLM tool calling to choose and execute an action."""
     try:
-        llm = (
-            ChatOllama(model=LLM_MODEL, temperature=0.0, num_predict=200)
-            .with_retry(stop_after_attempt=3, wait_exponential_jitter=True)
+        llm = ChatOllama(model=LLM_MODEL, temperature=0.0, num_predict=200)
+        llm_with_tools = llm.bind_tools(TOOLS).with_retry(
+            stop_after_attempt=3, wait_exponential_jitter=True
         )
-        llm_with_tools = llm.bind_tools(TOOLS)
 
         messages = [
             SystemMessage(
