@@ -1,10 +1,5 @@
 # Dispatch Tasks
 
-## Current
-- [ ] Week 12: README + Blog + Apply
-
-## Next
-
 ## Done
 - [x] Week 1 Day 1-2: Python Refresher — functions, classes, decorators, type hints
 - [x] Week 1 Day 1-2: Async/await with asyncio and httpx
@@ -73,3 +68,14 @@
   - [x] Write unit tests for router classification, SQL safety, retriever relevance, and API schemas
   - [x] Write `docs/architecture.md` with Mermaid diagram and design trade-offs
   - [x] Verify `ruff check` and `pytest` pass
+- [x] Week 12: README + Blog + Apply
+  - [x] Rewrite `README.md` with features, architecture, quick start, evaluation results, and project structure
+  - [x] Write `docs/blog_post.md` build journal
+  - [x] Update `AGENTS.md` with final commands and key files
+  - [x] Final lint and test verification
+  - [x] Commit all changes
+
+## Post-Plan Ideas
+- Try a different local model (qwen2.5, phi4) as an alternative LLM.
+- Experiment with another agent framework (smolagents, CrewAI) for comparison.
+- Add a second blog post comparing LangGraph to another framework.
