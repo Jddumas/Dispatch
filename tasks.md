@@ -1,10 +1,9 @@
 # Dispatch Tasks
 
 ## Current
-- [ ] Commit Week 6 changes
+- [ ] Week 7: FastAPI Backend
 
 ## Next
-- [ ] Week 7: FastAPI Backend
 - [ ] Week 8: LangSmith Tracing + Evaluation
 - [ ] Week 9: Docker + Deployment
 
