@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import time
 from collections.abc import AsyncGenerator
@@ -106,6 +107,8 @@ class ChatResponse(BaseModel):
     reply: str
     intent: str
     sources: list[str] = []
+    sql_query: str = ""
+    data: list[dict[str, Any]] | None = None
 
 
 @lru_cache(maxsize=128)
@@ -121,6 +124,7 @@ def _cached_agent_run(message: str, session_id: str) -> dict[str, Any]:
         "intent": state.get("intent", "general"),
         "sources": state.get("sources", []),
         "sql_query": state.get("sql_query", ""),
+        "data": state.get("data") or [],
     }
 
 
@@ -185,6 +189,8 @@ async def chat(request: Request, payload: ChatRequest) -> ChatResponse:
         reply=result["reply"],
         intent=result["intent"],
         sources=result["sources"],
+        sql_query=result.get("sql_query", ""),
+        data=result.get("data") or [],
     )
 
 
@@ -193,7 +199,13 @@ def _sse(event: str, data: str) -> bytes:
     return f"event: {event}\ndata: {data}\n\n".encode()
 
 
-async def _stream_reply(reply: str, intent: str, sources: list[str]) -> AsyncGenerator[bytes, None]:
+async def _stream_reply(
+    reply: str,
+    intent: str,
+    sources: list[str],
+    sql_query: str = "",
+    data: list[dict[str, Any]] | None = None,
+) -> AsyncGenerator[bytes, None]:
     """Stream the final answer as Server-Sent Events.
 
     Note: the underlying local-LLM graph is synchronous, so this streams the
@@ -204,6 +216,10 @@ async def _stream_reply(reply: str, intent: str, sources: list[str]) -> AsyncGen
     yield _sse("intent", intent)
     for source in sources:
         yield _sse("source", source)
+    if sql_query:
+        yield _sse("sql_query", sql_query)
+    if data:
+        yield _sse("data", json.dumps(data, default=str))
 
     # Stream the reply in small chunks for a natural typing effect.
     words = reply.split(" ")
@@ -232,7 +248,13 @@ async def chat_stream(request: Request, payload: ChatRequest) -> StreamingRespon
     await _update_metrics(request, result["intent"], payload.message, result["reply"], latency)
 
     return StreamingResponse(
-        _stream_reply(result["reply"], result["intent"], result["sources"]),
+        _stream_reply(
+            result["reply"],
+            result["intent"],
+            result["sources"],
+            sql_query=result.get("sql_query", ""),
+            data=result.get("data") or [],
+        ),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
     )

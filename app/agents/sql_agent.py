@@ -174,7 +174,7 @@ def run_sql_agent(question: str, messages: list[BaseMessage] | None = None) -> d
     return {"query": query, "rows": rows, "answer": answer}
 
 
-def sql_node(state: AgentState) -> dict[str, str]:
+def sql_node(state: AgentState) -> dict[str, Any]:
     """Run the SQL agent on the latest user message and conversation history."""
     question = last_human_message(state)
     try:
@@ -182,10 +182,12 @@ def sql_node(state: AgentState) -> dict[str, str]:
         return {
             "result": result["answer"],
             "sql_query": result.get("query", ""),
+            "data": result.get("rows") or [],
         }
     except Exception:
         logger.exception("SQL agent node failed")
         return {
             "result": "I couldn't query the database right now. Please try again later.",
             "sql_query": "",
+            "data": [],
         }

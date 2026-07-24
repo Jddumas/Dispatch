@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from langchain_core.messages import BaseMessage, HumanMessage
 from langgraph.graph import add_messages
-from typing_extensions import TypedDict
+from typing_extensions import NotRequired, TypedDict
 
 
 class AgentState(TypedDict):
@@ -15,6 +15,7 @@ class AgentState(TypedDict):
     result: str
     sources: list[str]
     sql_query: str
+    data: NotRequired[list[dict[str, Any]] | None]
 
 
 def last_human_message(state: AgentState) -> str:

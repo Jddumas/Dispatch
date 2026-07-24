@@ -905,7 +905,7 @@ Day 3: Add a second level of complexity (3 hrs)
 
 
 Day 4: Polish + verify (2 hrs)
-[ ] Improve how answers are presented in the UI (tables for query results,
+[x] Improve how answers are presented in the UI (tables for query results,
     clearer source citations, tidy intent/details expander)
 [x] Add the new complex questions to eval/test_cases.json and re-run the eval suite
 [ ] Record a short demo script (the exact sequence of questions to show off)
@@ -959,7 +959,7 @@ Week  | Focus                          | Status
  10   | Streamlit Frontend             | [~] UI done; not deployed to Streamlit Cloud
  11   | Optimization + Polish          | [x]
  12   | README + Blog + Apply          | [~] README/blog draft done; publish + apply pending
- 13   | Demo Polish — Richer Questions | [~] Core done; UI tables + demo script + screenshots remain
+ 13   | Demo Polish — Richer Questions | [~] Core + UI polish done; demo script + screenshots remain
 
 
 ================================================================================

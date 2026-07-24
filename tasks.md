@@ -1,7 +1,6 @@
 # Dispatch Tasks
 
 ## Current
-- [ ] Week 13 (remaining): add UI tables for SQL query results and clearer source citations in Streamlit
 - [ ] Week 13 (remaining): record a repeatable demo script and re-capture screenshots after deployment
 
 ## Next
@@ -97,3 +96,4 @@
 - [x] Week 13 Day 3: add complex SQL and new RAG/general test cases to `eval/test_cases.json`
 - [x] Week 13 Day 4: re-run eval suite with the new cases and update README evaluation results + example questions
 - [x] Week 13 Day 4: commit all Week 13 changes
+- [x] Week 13 UI polish: return SQL result rows from backend and render them as tables in Streamlit, with SQL query and source list in expander

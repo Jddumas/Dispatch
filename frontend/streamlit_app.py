@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import os
 
+import pandas as pd
 import requests
 import streamlit as st
 
@@ -107,17 +109,28 @@ def _display_message(msg: dict) -> None:
             with st.expander("Details"):
                 st.write(f"Intent: `{msg['intent']}`")
                 if msg.get("sources"):
-                    st.write(f"Sources: {', '.join(msg['sources'])}")
+                    st.caption("Sources")
+                    for source in msg["sources"]:
+                        st.markdown(f"- *{source}*")
+                if msg.get("sql_query"):
+                    st.caption("SQL")
+                    st.code(msg["sql_query"], language="sql")
+                if msg.get("data"):
+                    st.caption("Query results")
+                    df = pd.DataFrame(msg["data"])
+                    st.dataframe(df, use_container_width=True, hide_index=True)
 
 
 for message in st.session_state.messages:
     _display_message(message)
 
 
-def _handle_streaming_response(prompt: str, session_id: str) -> tuple[str, str, list[str]]:
+def _handle_streaming_response(prompt: str, session_id: str) -> tuple[str, str, list[str], str, list[dict] | None]:
     reply = ""
     intent = "general"
     sources: list[str] = []
+    sql_query = ""
+    rows: list[dict] | None = None
 
     with requests.post(
         CHAT_ENDPOINT,
@@ -140,16 +153,20 @@ def _handle_streaming_response(prompt: str, session_id: str) -> tuple[str, str, 
                     intent = data
                 elif current_event == "source":
                     sources.append(data)
+                elif current_event == "sql_query":
+                    sql_query = data
+                elif current_event == "data":
+                    rows = json.loads(data)
                 elif current_event == "message":
                     reply += data
                     placeholder.markdown(reply)
                 elif current_event == "done":
                     break
 
-    return reply, intent, sources
+    return reply, intent, sources, sql_query, rows
 
 
-def _handle_sync_response(prompt: str, session_id: str) -> tuple[str, str, list[str]]:
+def _handle_sync_response(prompt: str, session_id: str) -> tuple[str, str, list[str], str, list[dict] | None]:
     resp = requests.post(
         SYNC_CHAT_ENDPOINT,
         json={"message": prompt, "session_id": session_id},
@@ -160,8 +177,10 @@ def _handle_sync_response(prompt: str, session_id: str) -> tuple[str, str, list[
     reply = data.get("reply", "")
     intent = data.get("intent", "general")
     sources = data.get("sources", [])
+    sql_query = data.get("sql_query", "")
+    rows = data.get("data") or None
     st.write(reply)
-    return reply, intent, sources
+    return reply, intent, sources, sql_query, rows
 
 
 prompt = st.chat_input("Ask me anything...")
@@ -177,13 +196,15 @@ if prompt:
     intent: str = "general"
     sources: list[str] = []
 
+    sql_query = ""
+    rows: list[dict] | None = None
     with st.chat_message("assistant"):
         try:
             with st.spinner("Thinking..."):
                 if use_streaming:
-                    reply, intent, sources = _handle_streaming_response(prompt, session_id)
+                    reply, intent, sources, sql_query, rows = _handle_streaming_response(prompt, session_id)
                 else:
-                    reply, intent, sources = _handle_sync_response(prompt, session_id)
+                    reply, intent, sources, sql_query, rows = _handle_sync_response(prompt, session_id)
         except requests.exceptions.ConnectionError:
             reply = "Unable to reach the Dispatch AI API. Please make sure the backend is running."
             st.error(reply)
@@ -201,8 +222,17 @@ if prompt:
             with st.expander("Details"):
                 st.write(f"Intent: `{intent}`")
                 if sources:
-                    st.write(f"Sources: {', '.join(sources)}")
+                    st.caption("Sources")
+                    for source in sources:
+                        st.markdown(f"- *{source}*")
+                if sql_query:
+                    st.caption("SQL")
+                    st.code(sql_query, language="sql")
+                if rows:
+                    st.caption("Query results")
+                    df = pd.DataFrame(rows)
+                    st.dataframe(df, use_container_width=True, hide_index=True)
 
     st.session_state.messages.append(
-        {"role": "assistant", "content": reply, "intent": intent, "sources": sources}
+        {"role": "assistant", "content": reply, "intent": intent, "sources": sources, "sql_query": sql_query, "data": rows}
     )
