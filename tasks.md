@@ -1,12 +1,9 @@
 # Dispatch Tasks
 
 ## Current
-- [ ] Week 11: Optimization + Polish
-
-## Next
 - [ ] Week 12: README + Blog + Apply
 
-## Backlog
+## Next
 
 ## Done
 - [x] Week 1 Day 1-2: Python Refresher — functions, classes, decorators, type hints
@@ -69,3 +66,10 @@
   - [x] Add example questions, session ID, and error handling in the sidebar
   - [x] Update `.env.example` with `API_URL` and `AGENTS.md` with the streamlit run command
   - [x] Start the FastAPI backend and verify the Streamlit server starts and responds on `/_stcore/health`
+- [x] Week 11: Optimization + Polish
+  - [x] Add response caching with `functools.lru_cache` for repeated queries
+  - [x] Add `/metrics` endpoint with request count, latency, token estimate, intent distribution, and cost estimate
+  - [x] Run `ruff` linter and fix issues across `app/`, `frontend/`, `eval/`, `tests/`
+  - [x] Write unit tests for router classification, SQL safety, retriever relevance, and API schemas
+  - [x] Write `docs/architecture.md` with Mermaid diagram and design trade-offs
+  - [x] Verify `ruff check` and `pytest` pass
