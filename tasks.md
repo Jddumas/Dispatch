@@ -1,15 +1,13 @@
 # Dispatch Tasks
 
 ## Current
-- [ ] Commit Week 8 changes
+- [ ] Week 9: Docker + Deployment
 
 ## Next
-- [ ] Week 9: Docker + Deployment
 - [ ] Week 10: Streamlit Frontend
+- [ ] Week 11: Optimization + Polish
 
 ## Backlog
-- Week 10: Streamlit Frontend
-- Week 11: Optimization + Polish
 - Week 12: README + Blog + Apply
 
 ## Done
@@ -50,3 +48,15 @@
   - [x] Add retries (`with_retry`) and try/except error handling around LLM, DB, RAG, and action calls
   - [x] Add logging throughout the agent modules
   - [x] Test multi-turn SQL/RAG conversations and edge cases in `experiments/11_week6_memory.py`
+- [x] Week 7: FastAPI Backend
+  - [x] Install `fastapi`, `uvicorn`, `slowapi`, `pydantic-settings`
+  - [x] Write `app/main.py` with `/health`, `/chat`, `/chat/stream`, and `/sessions/{session_id}/history`
+  - [x] Add CORS, rate limiting, and request/response logging middleware
+  - [x] Use pydantic-settings in `app/config.py`
+  - [x] Test endpoints with curl/httpx and Swagger at `/docs`
+- [x] Week 8: LangSmith Tracing + Evaluation
+  - [x] Add LangSmith env vars (`LANGCHAIN_TRACING_V2`, `LANGCHAIN_API_KEY`, `LANGCHAIN_PROJECT`) to `.env.example` and `app/config.py`
+  - [x] Add `experiments/12_langsmith_trace.py` for tracing verification
+  - [x] Create `eval/test_cases.json` with 20+ test cases
+  - [x] Write `eval/run_eval.py` for intent, SQL, RAG, and action evaluation
+  - [x] Run evaluation suite and save results JSON
