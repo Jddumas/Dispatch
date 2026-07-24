@@ -1,10 +1,7 @@
 # Dispatch Tasks
 
 ## Current
-- [ ] Week 5: SQL Agent + Action Agent
-  - [ ] Design a robust SQL node that converts natural language to safe, parameterized SQL
-  - [ ] Add tool definitions and a ToolNode for real actions (e.g., get_weather, update_order_status)
-  - [ ] Integrate the SQL and action branches into the Week 4 graph
+- [ ] Commit Week 5 changes
 
 ## Next
 - [ ] Week 6: Memory + Error Handling
@@ -12,9 +9,6 @@
 - [ ] Week 8: LangSmith Tracing + Evaluation
 
 ## Backlog
-- Week 6: Memory + Error Handling
-- Week 7: FastAPI Backend
-- Week 8: LangSmith Tracing + Evaluation
 - Week 9: Docker + Deployment
 - Week 10: Streamlit Frontend
 - Week 11: Optimization + Polish
@@ -47,3 +41,8 @@
   - [x] Build a state-machine graph that classifies intent and routes to SQL, RAG, action, or general nodes
   - [x] Write `experiments/09_langgraph_basics.py`
   - [x] Test the graph with 5 representative inputs
+- [x] Week 5: SQL Agent + Action Agent
+  - [x] Write `app/agents/sql_agent.py` with safe, read-only SQL generation and natural-language result formatting
+  - [x] Write `app/agents/action_agent.py` and `app/tools/api_client.py` (weather, notification, create support ticket)
+  - [x] Write `app/agents/rag_agent.py` and `app/agents/router.py`; wire SQL/RAG/action/general branches into the Week 4 graph
+  - [x] Run `experiments/10_week5_graph.py` end-to-end against PostgreSQL

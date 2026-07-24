@@ -1,0 +1,21 @@
+"""Shared state and helpers for Dispatch AI agents."""
+
+from __future__ import annotations
+
+from langchain_core.messages import BaseMessage, HumanMessage
+from langgraph.graph import add_messages
+from typing_extensions import Annotated, TypedDict
+
+
+class AgentState(TypedDict):
+    messages: Annotated[list[BaseMessage], add_messages]
+    intent: str
+    result: str
+
+
+def last_human_message(state: AgentState) -> str:
+    """Return the content of the most recent HumanMessage."""
+    for msg in reversed(state["messages"]):
+        if isinstance(msg, HumanMessage):
+            return msg.content
+    return ""

@@ -28,9 +28,11 @@ Thumbs.db
 
 # Local PostgreSQL runtime files
 postgresql/
+pgsql/
 pgdata/
 postgresql-binaries.zip
 *.zip
+*.7z
 
 # ChromaDB vector store
 data/chroma/
