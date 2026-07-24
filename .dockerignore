@@ -1,0 +1,35 @@
+# Environments
+venv/
+.venv/
+env/
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local data stores (will be mounted as volumes or hosted as services)
+data/chroma/
+data/checkpoints.sqlite
+data/checkpoints.sqlite-shm
+data/checkpoints.sqlite-wal
+
+# Local PostgreSQL runtime
+pgsql/
+pgdata/
+postgresql/
+
+# Logs and temp files
+*.log
+.commit-msg
+
+# Evaluation outputs and git
+.git/
+eval/results/

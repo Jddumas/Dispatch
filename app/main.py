@@ -6,6 +6,7 @@ import asyncio
 import logging
 import time
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,9 +25,35 @@ from app.config import API_RATE_LIMIT, CORS_ORIGINS
 setup_logging()
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize external services before accepting requests."""
+    try:
+        from app.tools import retriever
+
+        def _check_and_index() -> int:
+            client = retriever._get_client()
+            collection = retriever._get_collection(client)
+            if collection.count() == 0:
+                logger.info("ChromaDB collection is empty; indexing knowledge base...")
+                return retriever.index_documents()
+            logger.info("ChromaDB collection already has %s chunks; skipping index", collection.count())
+            return 0
+
+        indexed = await run_in_threadpool(_check_and_index)
+        if indexed:
+            logger.info("Indexed %d knowledge-base chunks", indexed)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("ChromaDB initialization failed: %s", exc)
+
+    yield
+    # Shutdown cleanup can be added here.
+
+
 limiter = Limiter(key_func=get_remote_address)
 
-app = FastAPI(title="Dispatch AI — Support Agent API")
+app = FastAPI(title="Dispatch AI — Support Agent API", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

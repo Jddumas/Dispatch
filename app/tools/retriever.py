@@ -19,16 +19,23 @@ LLM_MODEL = os.getenv("LLM_MODEL", "llama3.1")
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "800"))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "100"))
 
+# Optional ChromaDB server connection (used in Docker); falls back to local persistent storage.
+CHROMA_HOST = os.getenv("CHROMA_HOST")
+CHROMA_PORT = int(os.getenv("CHROMA_PORT", "8000"))
+
 # Cosine distance threshold: chunks above this are considered irrelevant.
 RAG_DISTANCE_THRESHOLD = float(os.getenv("RAG_DISTANCE_THRESHOLD", "1.0"))
 
 
-def _get_client() -> chromadb.PersistentClient:
+def _get_client() -> chromadb.ClientAPI:
+    """Return a ChromaDB client: HttpClient when CHROMA_HOST is set, else PersistentClient."""
+    if CHROMA_HOST:
+        return chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
     CHROMA_DIR.mkdir(parents=True, exist_ok=True)
     return chromadb.PersistentClient(path=str(CHROMA_DIR))
 
 
-def _get_collection(client: chromadb.PersistentClient | None = None):
+def _get_collection(client: chromadb.ClientAPI | None = None):
     if client is None:
         client = _get_client()
     return client.get_or_create_collection(name="support_kb")

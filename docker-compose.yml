@@ -1,0 +1,92 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: support_agent
+      POSTGRES_USER: agent
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./data/seed_data.sql:/docker-entrypoint-initdb.d/seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent -d support_agent"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - "8001:8000"
+    volumes:
+      - chromadata:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/heartbeat')\"",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    command: >
+      sh -c "
+        ollama serve &
+        sleep 5
+        ollama pull llama3.1
+        ollama pull nomic-embed-text
+        wait
+      "
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "ollama list | grep -q 'llama3.1' && ollama list | grep -q 'nomic-embed-text'",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 60
+      start_period: 60s
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - PGHOST=db
+      - PGPORT=5432
+      - PGDATABASE=support_agent
+      - PGUSER=agent
+      - PGPASSWORD=password
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - OLLAMA_HOST=http://ollama:11434
+      - CHECKPOINT_DB=data/checkpoints.sqlite
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+      chromadb:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  chromadata:
+  ollama_models:

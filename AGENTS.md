@@ -13,6 +13,7 @@
 - FastAPI backend lives in `app/main.py`. Start it with `.\venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000` and test with curl/httpx against `/health`, `/chat`, `/chat/stream`, and `/sessions/{session_id}/history`.
 - LangSmith tracing is configured through `.env`: set `LANGCHAIN_TRACING_V2=true`, `LANGCHAIN_API_KEY`, and `LANGCHAIN_PROJECT`. Run `experiments/12_langsmith_trace.py` to verify.
 - Evaluation suite lives in `eval/`: edit `eval/test_cases.json` and run `.\venv\Scripts\python.exe eval/run_eval.py`. Results are saved to `eval/results/`.
+- Docker support is in `Dockerfile` and `docker-compose.yml`. Run `docker compose up --build -d` to start the full stack (PostgreSQL, ChromaDB, Ollama, and the FastAPI app). The first startup pulls `llama3.1` and `nomic-embed-text` into the Ollama container and can take several minutes. The app auto-indexes the knowledge base into ChromaDB on startup if the collection is empty.
 
 ## Reporting Requirement
 After completing each task or group of related tasks, produce a **detailed report** that includes:
