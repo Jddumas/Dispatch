@@ -19,6 +19,7 @@ Thumbs.db
 
 # Logs
 *.log
+.commit-msg
 
 # Local Devin / agent configuration
 .devin/
