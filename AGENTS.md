@@ -9,6 +9,7 @@
   - Start: `.\pgsql\pgsql\bin\pg_ctl.exe -D "$PWD\pgsql\data" -l "$PWD\pgsql\logfile" start`
   - Stop: `.\pgsql\pgsql\bin\pg_ctl.exe -D "$PWD\pgsql\data" stop`
   - The `support_agent` database, `agent` user, and seeded tables are already created.
+- Conversation state is persisted in `data/checkpoints.sqlite` using LangGraph's `SqliteSaver`. Use a consistent `thread_id` for multi-turn conversations; see `experiments/11_week6_memory.py`.
 
 ## Reporting Requirement
 After completing each task or group of related tasks, produce a **detailed report** that includes:

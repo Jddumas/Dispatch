@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import logging
+
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langchain_ollama import ChatOllama
 
 from app.agents.state import AgentState, last_human_message
+from app.config import LLM_MODEL
 from app.tools import api_client
 
 
-LLM_MODEL = "llama3.1"
+logger = logging.getLogger(__name__)
+
 TOOLS = [
     api_client.get_weather,
     api_client.send_notification,
@@ -24,6 +28,7 @@ def _execute_tool(tool_call: dict) -> ToolMessage:
     tool_map = {tool.name: tool for tool in TOOLS}
 
     if name not in tool_map:
+        logger.warning("Unknown tool requested: %s", name)
         return ToolMessage(
             content=f"Unknown tool: {name}", tool_call_id=tool_call["id"]
         )
@@ -32,6 +37,7 @@ def _execute_tool(tool_call: dict) -> ToolMessage:
     try:
         result = tool.invoke(args)
     except Exception as exc:  # noqa: BLE001
+        logger.exception("Tool %s failed: %s", name, exc)
         result = f"Tool error: {exc}"
 
     return ToolMessage(content=str(result), tool_call_id=tool_call["id"])
@@ -39,35 +45,42 @@ def _execute_tool(tool_call: dict) -> ToolMessage:
 
 def run_action_agent(question: str) -> dict[str, str]:
     """Use LLM tool calling to choose and execute an action."""
-    llm = ChatOllama(model=LLM_MODEL, temperature=0.0)
-    llm_with_tools = llm.bind_tools(TOOLS)
+    try:
+        llm = (
+            ChatOllama(model=LLM_MODEL, temperature=0.0, num_predict=200)
+            .with_retry(stop_after_attempt=3, wait_exponential_jitter=True)
+        )
+        llm_with_tools = llm.bind_tools(TOOLS)
 
-    messages = [
-        SystemMessage(
-            content=(
-                "You are a helpful support assistant. "
-                "For the user's request you MUST choose the correct tool, call it, "
-                "and then answer based solely on the tool result."
-            )
-        ),
-        HumanMessage(content=f"User request: {question}"),
-    ]
+        messages = [
+            SystemMessage(
+                content=(
+                    "You are a helpful support assistant that can use tools. "
+                    "For the user's request you MUST choose the correct tool, call it, "
+                    "and then answer based solely on the tool result."
+                )
+            ),
+            HumanMessage(content=f"User request: {question}"),
+        ]
 
-    response = llm_with_tools.invoke(messages)
-    if not response.tool_calls:
-        return {"answer": response.content}
+        response = llm_with_tools.invoke(messages)
+        if not response.tool_calls:
+            logger.info("No tool call made; returning direct response")
+            return {"answer": response.content or "I'm not sure how to handle that request."}
 
-    tool_messages = [_execute_tool(tc) for tc in response.tool_calls]
-    # Build the final answer directly from tool results. This is more reliable
-    # with local models than asking the LLM to summarize a tool-call conversation.
-    results = [tm.content for tm in tool_messages]
-    if len(results) == 1:
-        return {"answer": results[0]}
-    return {"answer": "\n\n".join(f"- {r}" for r in results)}
+        logger.info("Action agent calling tool(s): %s", [tc["name"] for tc in response.tool_calls])
+        tool_messages = [_execute_tool(tc) for tc in response.tool_calls]
+        results = [tm.content for tm in tool_messages]
+        if len(results) == 1:
+            return {"answer": results[0]}
+        return {"answer": "\n\n".join(f"- {r}" for r in results)}
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Action agent failed: %s", exc)
+        return {"answer": "I couldn't complete that action right now. Please try again later."}
 
 
 def action_node(state: AgentState) -> dict[str, str]:
-    """Run the action agent on the user's last message."""
+    """Run the action agent on the latest user message."""
     question = last_human_message(state)
     result = run_action_agent(question)
     return {"result": result["answer"]}

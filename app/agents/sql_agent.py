@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_ollama import ChatOllama
 
 from app.agents.state import AgentState, last_human_message
+from app.config import LLM_MODEL
 from app.tools import database
 
 
-LLM_MODEL = "llama3.1"
+logger = logging.getLogger(__name__)
 
 _FORBIDDEN_KEYWORDS = [
     "drop",
@@ -45,6 +47,18 @@ Return ONLY the SQL query, nothing else.
 Only use SELECT statements.
 Do not use a trailing semicolon.
 """
+
+
+def _build_history(messages: list[BaseMessage] | None, max_turns: int = 3) -> str:
+    """Format the most recent conversation turns for follow-up context."""
+    if not messages:
+        return ""
+    recent = messages[-max_turns * 2 :]
+    lines = []
+    for msg in recent:
+        role = "User" if isinstance(msg, HumanMessage) else "Assistant"
+        lines.append(f"{role}: {msg.content}")
+    return "\n".join(lines)
 
 
 def _strip_comments(sql: str) -> str:
@@ -91,11 +105,15 @@ def _is_safe(sql: str) -> tuple[bool, str]:
     return True, ""
 
 
-def _generate_sql(question: str) -> str:
-    llm = ChatOllama(model=LLM_MODEL, temperature=0.0)
+def _generate_sql(question: str, history: str = "") -> str:
+    history_section = f"Conversation history:\n{history}\n\n" if history else ""
+    llm = (
+        ChatOllama(model=LLM_MODEL, temperature=0.0, num_predict=200)
+        .with_retry(stop_after_attempt=3, wait_exponential_jitter=True)
+    )
     messages = [
         SystemMessage(content="You are a careful PostgreSQL expert."),
-        HumanMessage(content=f"{_SCHEMA_PROMPT}\n\nQuestion: {question}"),
+        HumanMessage(content=f"{history_section}{_SCHEMA_PROMPT}\n\nQuestion: {question}"),
     ]
     response = llm.invoke(messages)
     return _extract_sql(response.content)
@@ -112,16 +130,21 @@ def _format_answer(question: str, query: str, rows: list[dict[str, Any]]) -> str
         f"The query returned these results:\n{data_text}\n\n"
         "Summarize the answer in 1-2 natural language sentences. Be concise."
     )
-    llm = ChatOllama(model=LLM_MODEL, temperature=0.0)
+    llm = (
+        ChatOllama(model=LLM_MODEL, temperature=0.0, num_predict=150)
+        .with_retry(stop_after_attempt=3, wait_exponential_jitter=True)
+    )
     response = llm.invoke([HumanMessage(content=prompt)])
     return response.content.strip()
 
 
-def run_sql_agent(question: str) -> dict[str, Any]:
+def run_sql_agent(question: str, messages: list[BaseMessage] | None = None) -> dict[str, Any]:
     """Generate, validate, execute, and summarize a SQL query."""
-    query = _generate_sql(question)
+    history = _build_history(messages)
+    query = _generate_sql(question, history=history)
     safe, reason = _is_safe(query)
     if not safe:
+        logger.warning("Unsafe SQL rejected: %s -> %s", query, reason)
         return {
             "query": query,
             "error": reason,
@@ -131,6 +154,7 @@ def run_sql_agent(question: str) -> dict[str, Any]:
     try:
         rows = database.execute_query_safe(query)
     except Exception as exc:  # noqa: BLE001
+        logger.exception("Database query failed: %s", exc)
         return {
             "query": query,
             "error": str(exc),
@@ -142,6 +166,13 @@ def run_sql_agent(question: str) -> dict[str, Any]:
 
 
 def sql_node(state: AgentState) -> dict[str, str]:
+    """Run the SQL agent on the latest user message and conversation history."""
     question = last_human_message(state)
-    result = run_sql_agent(question)
-    return {"result": result["answer"]}
+    try:
+        result = run_sql_agent(question, messages=state["messages"])
+        return {"result": result["answer"]}
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("SQL agent node failed: %s", exc)
+        return {
+            "result": "I couldn't query the database right now. Please try again later."
+        }

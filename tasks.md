@@ -1,15 +1,14 @@
 # Dispatch Tasks
 
 ## Current
-- [ ] Commit Week 5 changes
+- [ ] Commit Week 6 changes
 
 ## Next
-- [ ] Week 6: Memory + Error Handling
 - [ ] Week 7: FastAPI Backend
 - [ ] Week 8: LangSmith Tracing + Evaluation
+- [ ] Week 9: Docker + Deployment
 
 ## Backlog
-- Week 9: Docker + Deployment
 - Week 10: Streamlit Frontend
 - Week 11: Optimization + Polish
 - Week 12: README + Blog + Apply
@@ -46,3 +45,9 @@
   - [x] Write `app/agents/action_agent.py` and `app/tools/api_client.py` (weather, notification, create support ticket)
   - [x] Write `app/agents/rag_agent.py` and `app/agents/router.py`; wire SQL/RAG/action/general branches into the Week 4 graph
   - [x] Run `experiments/10_week5_graph.py` end-to-end against PostgreSQL
+- [x] Week 6: Memory + Error Handling
+  - [x] Add SQLite `SqliteSaver` checkpointer and `thread_id`-based conversation memory
+  - [x] Add `validate_input` guardrails and `fallback` node
+  - [x] Add retries (`with_retry`) and try/except error handling around LLM, DB, RAG, and action calls
+  - [x] Add logging throughout the agent modules
+  - [x] Test multi-turn SQL/RAG conversations and edge cases in `experiments/11_week6_memory.py`

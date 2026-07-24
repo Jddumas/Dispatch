@@ -34,5 +34,9 @@ postgresql-binaries.zip
 *.zip
 *.7z
 
+# SQLite checkpointer and vector stores
+*.sqlite
+*.sqlite3
+
 # ChromaDB vector store
 data/chroma/

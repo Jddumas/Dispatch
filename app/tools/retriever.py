@@ -19,6 +19,9 @@ LLM_MODEL = os.getenv("LLM_MODEL", "llama3.1")
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "800"))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "100"))
 
+# Cosine distance threshold: chunks above this are considered irrelevant.
+RAG_DISTANCE_THRESHOLD = float(os.getenv("RAG_DISTANCE_THRESHOLD", "1.0"))
+
 
 def _get_client() -> chromadb.PersistentClient:
     CHROMA_DIR.mkdir(parents=True, exist_ok=True)
@@ -104,7 +107,10 @@ def index_documents() -> int:
 
     # Clear existing entries so re-runs stay consistent.
     client.delete_collection(name="support_kb")
-    collection = client.create_collection(name="support_kb")
+    collection = client.create_collection(
+        name="support_kb",
+        metadata={"hnsw:space": "cosine"},
+    )
 
     documents = _load_markdown_documents()
     chunks = _chunk_documents(documents)
@@ -150,7 +156,16 @@ def retrieve(query: str, k: int = 3) -> list[dict[str, Any]]:
 def answer(query: str, k: int = 3) -> dict[str, Any]:
     """Answer a question using retrieved context and the local LLM."""
     matches = retrieve(query, k=k)
-    context = "\n\n---\n\n".join(match["text"] for match in matches)
+    relevant = [m for m in matches if m["distance"] <= RAG_DISTANCE_THRESHOLD]
+
+    if not relevant:
+        return {
+            "query": query,
+            "answer": "I don't have any relevant information about that.",
+            "matches": matches,
+        }
+
+    context = "\n\n---\n\n".join(match["text"] for match in relevant)
 
     prompt = (
         "You are a helpful support assistant. Use only the provided context to answer "
@@ -172,7 +187,7 @@ def answer(query: str, k: int = 3) -> dict[str, Any]:
     return {
         "query": query,
         "answer": response["message"]["content"],
-        "matches": matches,
+        "matches": relevant,
     }
 
 
