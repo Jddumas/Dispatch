@@ -1,11 +1,11 @@
 # Dispatch Tasks
 
 ## Current
-- [ ] Commit Week 7 changes
+- [ ] Week 8: LangSmith Tracing + Evaluation
 
 ## Next
-- [ ] Week 8: LangSmith Tracing + Evaluation
 - [ ] Week 9: Docker + Deployment
+- [ ] Week 10: Streamlit Frontend
 
 ## Backlog
 - Week 10: Streamlit Frontend
