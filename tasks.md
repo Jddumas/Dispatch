@@ -1,10 +1,10 @@
 # Dispatch Tasks
 
 ## Current
-- [ ] Week 13 (remaining): record a repeatable demo script and re-capture screenshots after deployment
+- [ ] Deploy the FastAPI backend and Streamlit frontend, and replace placeholder Live Demo URLs in README.md
 
 ## Next
-- [ ] Deploy the FastAPI backend and Streamlit frontend, and replace placeholder Live Demo URLs in README.md
+- [ ] Week 13 (remaining): record a repeatable demo script and re-capture screenshots after deployment
 - [ ] Publish docs/blog_post.md and add the link to README.md
 - [ ] Verify the deployed demo end-to-end and confirm all links work
 
@@ -98,3 +98,6 @@
 - [x] Week 13 Day 4: commit all Week 13 changes
 - [x] Week 13 UI polish: return SQL result rows from backend and render them as tables in Streamlit, with SQL query and source list in expander
 - [x] Optimize SQL agent latency by replacing the second LLM summarization call with deterministic row formatting
+- [x] Add Groq/OpenAI provider abstraction so the same backend runs on local Ollama or hosted cloud LLMs
+- [x] Create Render backend blueprint and Streamlit Cloud deployment instructions
+- [ ] Deploy the stack and replace placeholder Live Demo URLs in README.md
