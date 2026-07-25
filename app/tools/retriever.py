@@ -181,7 +181,8 @@ def answer(query: str, k: int = 3) -> dict[str, Any]:
             content=(
                 "You are a helpful support assistant. Use only the provided context to answer "
                 "the user's question. If the context does not contain the answer, say so. "
-                "Cite the source titles when possible."
+                "Cite the source titles when possible. Answer in plain text sentences and "
+                "paragraphs; do not use markdown formatting, bold markers, or numbered lists."
             )
         ),
         HumanMessage(
