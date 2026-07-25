@@ -189,8 +189,16 @@ def _format_sql_answer(question: str, rows: list[dict[str, Any]]) -> str:
 
     # Most / highest / top / max
     if "most" in q or "highest" in q or "top" in q or "max" in q:
+        def _row_label(row: dict) -> str:
+            for key in ("name", "customer_name", "product_name", "category"):
+                if row.get(key):
+                    return str(row[key])
+            if row.get("id") is not None:
+                return str(row["id"])
+            return str(row.get(keys[0], ""))
+
         if len(rows) == 1:
-            label = rows[0].get(keys[0], "")
+            label = _row_label(rows[0])
             value = rows[0].get(keys[-1], "")
             phrase = cleaned.replace(" has the ", " with the ")
             if len(keys) == 1:
@@ -198,10 +206,10 @@ def _format_sql_answer(question: str, rows: list[dict[str, Any]]) -> str:
             return f"The {phrase} is {label} ({_format_value(value)})."
         parts = []
         for row in rows:
-            label = row.get(keys[0], "")
+            label = _row_label(row)
             value = row.get(keys[-1], "")
-            parts.append(f"{label} ({_format_value(value)})")
-        return f"The top results for {cleaned}: {', '.join(parts)}."
+            parts.append(f"- **{label}** ({_format_value(value)})")
+        return f"Here are the {cleaned}:\n" + "\n".join(parts)
 
     # Grouped / per / by queries
     if " by " in q or " per " in q or q.startswith(("what is total", "total")):
