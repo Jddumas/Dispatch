@@ -221,9 +221,17 @@ def _format_sql_answer(question: str, rows: list[dict[str, Any]]) -> str:
     preview = rows[:5]
     parts = []
     for row in preview:
-        pairs = [f"{k}={_format_value(v)}" for k, v in row.items()]
-        parts.append(", ".join(pairs))
-    return f'Found {len(rows)} records matching "{cleaned}". {" | ".join(parts)}.'
+        if "name" in row:
+            name = _format_value(row["name"])
+            other_pairs = [
+                f"{k}: {_format_value(v)}" for k, v in row.items() if k != "name"
+            ]
+            line = f"- **{name}**" + (f" ({', '.join(other_pairs)})" if other_pairs else "")
+        else:
+            pairs = [f"{k}: {_format_value(v)}" for k, v in row.items()]
+            line = f"- {', '.join(pairs)}"
+        parts.append(line)
+    return f"Found {len(rows)} records for '{cleaned}':\n" + "\n".join(parts)
 
 
 def _format_answer(question: str, query: str, rows: list[dict[str, Any]]) -> str:
