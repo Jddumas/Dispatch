@@ -6,9 +6,9 @@ A production-ready multi-agent AI support system built with **LangGraph**, **Fas
 
 ## Live Demo
 
-- Chat UI: *[Streamlit app URL to be added after deployment]*
-- API Base: *[Render URL to be added after deployment]*
-- API Docs: `http://localhost:8000/docs` (when running locally)
+- Chat UI: *[Streamlit app URL to be added after Streamlit Cloud deployment]*
+- API Base: https://dispatch-api-27sb.onrender.com
+- API Docs: https://dispatch-api-27sb.onrender.com/docs
 
 ## Features
 

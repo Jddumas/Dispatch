@@ -100,4 +100,5 @@
 - [x] Optimize SQL agent latency by replacing the second LLM summarization call with deterministic row formatting
 - [x] Add Groq/OpenAI provider abstraction so the same backend runs on local Ollama or hosted cloud LLMs
 - [x] Create Render backend blueprint and Streamlit Cloud deployment instructions
-- [ ] Deploy the stack and replace placeholder Live Demo URLs in README.md
+- [x] Deploy the FastAPI backend to Render and update README Live Demo URL
+- [ ] Deploy the Streamlit frontend to Streamlit Cloud and update the chat UI URL
