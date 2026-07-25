@@ -16,15 +16,18 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def _connection_args() -> dict:
-    """Return psycopg2 connection args from environment variables."""
-    return {
-        "host": os.getenv("PGHOST", "localhost"),
-        "port": int(os.getenv("PGPORT", "5432")),
-        "dbname": os.getenv("PGDATABASE", "support_agent"),
-        "user": os.getenv("PGUSER", "agent"),
-        "password": os.getenv("PGPASSWORD", "password"),
-    }
+def _connect() -> psycopg2.extensions.connection:
+    """Connect using DATABASE_URL if available, otherwise PG* env vars."""
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        return psycopg2.connect(database_url)
+    return psycopg2.connect(
+        host=os.getenv("PGHOST", "localhost"),
+        port=int(os.getenv("PGPORT", "5432")),
+        dbname=os.getenv("PGDATABASE", "support_agent"),
+        user=os.getenv("PGUSER", "agent"),
+        password=os.getenv("PGPASSWORD", "password"),
+    )
 
 
 def _already_seeded(conn: psycopg2.extensions.connection) -> bool:
@@ -46,10 +49,9 @@ def _run_seed_sql(conn: psycopg2.extensions.connection, seed_path: Path) -> None
 
 def main() -> None:
     seed_path = Path(__file__).resolve().parent / "data" / "seed_data.sql"
-    args = _connection_args()
-    logger.info("Connecting to database at %s:%s/%s", args["host"], args["port"], args["dbname"])
+    logger.info("Connecting to database...")
 
-    conn = psycopg2.connect(**args)
+    conn = _connect()
     try:
         if _already_seeded(conn):
             logger.info("Database already seeded; skipping.")
