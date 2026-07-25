@@ -956,7 +956,7 @@ Week  | Focus                          | Status
   7   | FastAPI Backend                | [x]
   8   | Tracing + Evaluation           | [x] Code done; live tracing/dashboard not verified
   9   | Docker + Deployment            | [~] Render blueprint + Streamlit Cloud instructions ready; deployment pending credentials
- 10   | Streamlit Frontend             | [~] UI done; not deployed to Streamlit Cloud
+ 10   | Streamlit Frontend             | [~] UI done; backend deployed, Streamlit Cloud deployment pending
  11   | Optimization + Polish          | [x]
  12   | README + Blog + Apply          | [~] README/blog draft done; publish + apply pending
  13   | Demo Polish — Richer Questions | [~] Core + UI polish done; demo script + screenshots remain
