@@ -195,7 +195,11 @@ async def chat(request: Request, payload: ChatRequest) -> ChatResponse:
 
 
 def _sse(event: str, data: str) -> bytes:
-    """Encode a Server-Sent Event."""
+    """Encode a Server-Sent Event.
+
+    Newlines inside the data payload are escaped so the SSE framing stays intact.
+    """
+    data = data.replace("\n", "\\n")
     return f"event: {event}\ndata: {data}\n\n".encode()
 
 

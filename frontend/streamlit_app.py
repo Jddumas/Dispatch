@@ -158,8 +158,8 @@ def _handle_streaming_response(prompt: str, session_id: str) -> tuple[str, str, 
                 current_event = text[6:].strip()
             elif text.startswith("data:"):
                 # SSE includes one space after the colon; remove it but keep any
-                # intentional leading spaces in the payload.
-                data = text[5:].removeprefix(" ")
+                # intentional leading spaces in the payload. Restore escaped newlines.
+                data = text[5:].removeprefix(" ").replace("\\n", "\n")
                 if current_event == "intent":
                     intent = data
                 elif current_event == "source":
