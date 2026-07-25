@@ -2,22 +2,32 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 from app.tools import retriever
 
 
-def _make_ollama_mocks(monkeypatch):
-    """Patch Ollama embed/chat calls so retriever tests do not require a running server."""
+class _MockEmbedder:
+    """Return deterministic embeddings for tests."""
 
-    def mock_embed(*, model, input):
-        return SimpleNamespace(embeddings=[[1.0, 0.0, 0.0]] * len(input))
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return [[1.0, 0.0, 0.0]] * len(texts)
 
-    def mock_chat(*, model, messages, options=None):
-        return {"message": {"content": "You can return items within 30 days."}}
+    def embed_query(self, text: str) -> list[float]:
+        return [1.0, 0.0, 0.0]
 
-    monkeypatch.setattr(retriever.ollama, "embed", mock_embed)
-    monkeypatch.setattr(retriever.ollama, "chat", mock_chat)
+
+class _MockChat:
+    """Return a deterministic RAG answer for tests."""
+
+    def invoke(self, messages):
+        from langchain_core.messages import AIMessage
+
+        return AIMessage(content="You can return items within 30 days.")
+
+
+def _make_llm_mocks(monkeypatch):
+    """Patch the configured embedder and LLM so tests do not require a running server."""
+    monkeypatch.setattr(retriever, "get_embedder", lambda: _MockEmbedder())
+    monkeypatch.setattr(retriever, "get_llm", lambda **kwargs: _MockChat())
 
 
 def test_retriever_returns_relevant_answer(tmp_path, monkeypatch):
@@ -32,7 +42,7 @@ def test_retriever_returns_relevant_answer(tmp_path, monkeypatch):
     monkeypatch.setattr(retriever, "DOCUMENTS_DIR", docs_dir)
     monkeypatch.setattr(retriever, "CHROMA_DIR", chroma_dir)
     monkeypatch.setattr(retriever, "CHROMA_HOST", "")
-    _make_ollama_mocks(monkeypatch)
+    _make_llm_mocks(monkeypatch)
 
     # Ensure the collection exists so index_documents can delete/re-create it cleanly.
     retriever._get_collection()

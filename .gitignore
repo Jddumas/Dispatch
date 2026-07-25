@@ -44,5 +44,8 @@ postgresql-binaries.zip
 # ChromaDB vector store
 data/chroma/
 
+# Streamlit Cloud secrets
+.streamlit/secrets.toml
+
 # Evaluation outputs
 eval/results/

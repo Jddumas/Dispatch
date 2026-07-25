@@ -7,7 +7,6 @@ import sqlite3
 from pathlib import Path
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langchain_ollama import ChatOllama
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 
@@ -16,6 +15,7 @@ from app.agents.rag_agent import rag_node
 from app.agents.sql_agent import sql_node
 from app.agents.state import AgentState, last_human_message
 from app.config import CHECKPOINT_DB, CLASSIFY_MODEL, LLM_MODEL, MAX_INPUT_LENGTH
+from app.llm import get_llm
 
 logger = logging.getLogger(__name__)
 
@@ -95,9 +95,8 @@ def classify_intent(state: AgentState) -> dict:
     )
 
     try:
-        llm = (
-            ChatOllama(model=CLASSIFY_MODEL, temperature=0.0, num_predict=20)
-            .with_retry(stop_after_attempt=3, wait_exponential_jitter=True)
+        llm = get_llm(model=CLASSIFY_MODEL, temperature=0.0, max_tokens=20).with_retry(
+            stop_after_attempt=3, wait_exponential_jitter=True
         )
         response = llm.invoke([HumanMessage(content=prompt)])
         raw = response.content.strip().lower()
@@ -128,7 +127,7 @@ def fallback_node(state: AgentState) -> dict:
 def general_node(state: AgentState) -> dict:
     """Answer directly with the LLM, using the full conversation history."""
     try:
-        llm = ChatOllama(model=LLM_MODEL, temperature=0.0, num_predict=400)
+        llm = get_llm(model=LLM_MODEL, temperature=0.0, max_tokens=400)
         response = llm.invoke(
             [
                 SystemMessage(content="You are a helpful support assistant."),

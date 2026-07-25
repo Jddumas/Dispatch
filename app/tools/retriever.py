@@ -1,22 +1,22 @@
-"""Document retriever backed by ChromaDB + Ollama embeddings."""
+"""Document retriever backed by ChromaDB + a configurable embeddings provider."""
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import Any
 
 import chromadb
-import ollama
+from langchain_core.messages import HumanMessage, SystemMessage
+
+from app.llm import get_embedder, get_llm
+
+logger = logging.getLogger(__name__)
 
 DOCUMENTS_DIR = Path(__file__).resolve().parents[2] / "data" / "documents"
 CHROMA_DIR = Path(__file__).resolve().parents[2] / "data" / "chroma"
 
-
-EMBED_MODEL = os.getenv("EMBED_MODEL", "nomic-embed-text")
-
-
-LLM_MODEL = os.getenv("LLM_MODEL", "llama3.1")
 CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "800"))
 CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "100"))
 
@@ -43,10 +43,8 @@ def _get_collection(client: chromadb.ClientAPI | None = None):
 
 
 def _embed(texts: list[str]) -> list[list[float]]:
-    """Generate embeddings for a list of texts using the local Ollama model."""
-    response = ollama.embed(model=EMBED_MODEL, input=texts)
-    # The ollama Python client returns an object with an `.embeddings` attribute.
-    return response.embeddings
+    """Generate embeddings for a list of texts using the configured embedder."""
+    return get_embedder().embed_documents(texts)
 
 
 def _load_markdown_documents(directory: Path = DOCUMENTS_DIR) -> list[dict[str, str]]:
@@ -114,7 +112,10 @@ def index_documents() -> int:
     collection = _get_collection(client)
 
     # Clear existing entries so re-runs stay consistent.
-    client.delete_collection(name="support_kb")
+    try:
+        client.delete_collection(name="support_kb")
+    except Exception:  # noqa: BLE001
+        logger.debug("Could not delete collection; it may not exist")
     collection = client.create_collection(
         name="support_kb",
         metadata={"hnsw:space": "cosine"},
@@ -162,7 +163,7 @@ def retrieve(query: str, k: int = 3) -> list[dict[str, Any]]:
 
 
 def answer(query: str, k: int = 3) -> dict[str, Any]:
-    """Answer a question using retrieved context and the local LLM."""
+    """Answer a question using retrieved context and the configured LLM."""
     matches = retrieve(query, k=k)
     relevant = [m for m in matches if m["distance"] <= RAG_DISTANCE_THRESHOLD]
 
@@ -175,26 +176,24 @@ def answer(query: str, k: int = 3) -> dict[str, Any]:
 
     context = "\n\n---\n\n".join(match["text"] for match in relevant)
 
-    prompt = (
-        "You are a helpful support assistant. Use only the provided context to answer "
-        "the user's question. If the context does not contain the answer, say so. "
-        "Cite the source titles when possible.\n\n"
-        f"Context:\n{context}\n\n"
-        f"Question: {query}\n\nAnswer:"
-    )
+    messages = [
+        SystemMessage(
+            content=(
+                "You are a helpful support assistant. Use only the provided context to answer "
+                "the user's question. If the context does not contain the answer, say so. "
+                "Cite the source titles when possible."
+            )
+        ),
+        HumanMessage(
+            content=f"Context:\n{context}\n\nQuestion: {query}\n\nAnswer:"
+        ),
+    ]
 
-    response = ollama.chat(
-        model=LLM_MODEL,
-        messages=[
-            {"role": "system", "content": "Answer accurately and concisely."},
-            {"role": "user", "content": prompt},
-        ],
-        options={"temperature": 0.3, "num_predict": 400},
-    )
+    response = get_llm(temperature=0.3, max_tokens=400).invoke(messages)
 
     return {
         "query": query,
-        "answer": response["message"]["content"],
+        "answer": response.content,
         "matches": relevant,
     }
 

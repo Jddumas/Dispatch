@@ -5,10 +5,10 @@ from __future__ import annotations
 import logging
 
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
-from langchain_ollama import ChatOllama
 
 from app.agents.state import AgentState, last_human_message
 from app.config import LLM_MODEL
+from app.llm import get_llm
 from app.tools import api_client
 
 logger = logging.getLogger(__name__)
@@ -45,7 +45,7 @@ def _execute_tool(tool_call: dict) -> ToolMessage:
 def run_action_agent(question: str) -> dict[str, str]:
     """Use LLM tool calling to choose and execute an action."""
     try:
-        llm = ChatOllama(model=LLM_MODEL, temperature=0.0, num_predict=200)
+        llm = get_llm(model=LLM_MODEL, temperature=0.0, max_tokens=200)
         llm_with_tools = llm.bind_tools(TOOLS).with_retry(
             stop_after_attempt=3, wait_exponential_jitter=True
         )

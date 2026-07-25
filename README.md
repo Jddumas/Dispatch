@@ -2,11 +2,12 @@
 
 A production-ready multi-agent AI support system built with **LangGraph**, **FastAPI**, **PostgreSQL**, **ChromaDB**, and **Ollama**. It routes customer questions to specialized agents for knowledge-base Q&A, safe SQL queries, automated actions, and general conversation — with conversation memory, streaming responses, and observability built in.
 
-> **Note:** This project uses local LLMs via Ollama. No paid API keys are required to run the core stack.
+> **Note:** This project uses local LLMs via Ollama by default. It also supports Groq and OpenAI for faster cloud deployments, and `fastembed` for CPU embeddings when Ollama is not available.
 
 ## Live Demo
 
 - Chat UI: *[Streamlit app URL to be added after deployment]*
+- API Base: *[Render URL to be added after deployment]*
 - API Docs: `http://localhost:8000/docs` (when running locally)
 
 ## Features
@@ -155,6 +156,63 @@ ruff check app frontend eval tests
 
 # Unit tests
 pytest tests -v
+```
+
+## Deployment
+
+The repository includes a `render.yaml` blueprint for [Render](https://render.com). It uses **Groq** for fast, hosted LLM inference and **FastEmbed** for CPU embeddings so the app runs on Render's free/CPU tier.
+
+### Render (backend)
+
+1. Make sure the repo is pushed to GitHub.
+2. Create a Render account and install the [Render CLI](https://render.com/docs/cli).
+3. Set the Groq API key in your shell:
+
+```bash
+export GROQ_API_KEY=gsk_...
+```
+
+4. Deploy:
+
+```bash
+render blueprint apply render.yaml
+# or click the Render dashboard "New +" -> "Blueprint" and select render.yaml
+```
+
+5. After the service is live, copy the service URL (e.g. `https://dispatch-api-xxx.onrender.com`) and add it to the Streamlit Cloud secrets as `API_URL`.
+
+### Streamlit Community Cloud (frontend)
+
+1. Push the repo to GitHub.
+2. Go to [Streamlit Community Cloud](https://streamlit.io/cloud) and create a new app.
+3. Select `frontend/streamlit_app.py` as the main file.
+4. In the app settings/secrets, add:
+
+```toml
+API_URL = "https://dispatch-api-xxx.onrender.com"
+```
+
+5. Deploy and update the **Live Demo** URLs above.
+
+### Switching LLM providers locally
+
+Set the provider in `.env`:
+
+```bash
+# Ollama (default)
+LLM_PROVIDER=ollama
+LLM_MODEL=llama3.1
+
+# Groq
+LLM_PROVIDER=groq
+GROQ_API_KEY=gsk_...
+LLM_MODEL=llama-3.1-8b-instant
+CLASSIFY_MODEL=llama-3.1-8b-instant
+
+# OpenAI
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+LLM_MODEL=gpt-4o-mini
 ```
 
 ## Example Questions to Try

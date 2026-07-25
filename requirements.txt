@@ -8,7 +8,10 @@ httpx>=0.25.0
 
 # LangChain and LangGraph (for agent orchestration)
 langchain>=0.3.0
+langchain-community>=0.3.0
 langchain-ollama>=1.0.0
+langchain-groq>=0.2.0
+langchain-openai>=0.2.0
 langgraph>=1.0.0
 langgraph-checkpoint-sqlite>=3.0.0
 
@@ -27,6 +30,9 @@ ollama>=0.6.0
 
 # Vector store
 chromadb>=0.4.0
+
+# CPU embeddings for cloud deployments (optional; Ollama is default)
+fastembed>=0.3.0
 
 # Frontend
 streamlit>=1.28.0

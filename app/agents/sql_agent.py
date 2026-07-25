@@ -8,10 +8,10 @@ from decimal import Decimal
 from typing import Any
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
-from langchain_ollama import ChatOllama
 
 from app.agents.state import AgentState, last_human_message
 from app.config import LLM_MODEL
+from app.llm import get_llm
 from app.tools import database
 
 logger = logging.getLogger(__name__)
@@ -117,9 +117,8 @@ def _is_safe(sql: str) -> tuple[bool, str]:
 
 def _generate_sql(question: str, history: str = "") -> str:
     history_section = f"Conversation history:\n{history}\n\n" if history else ""
-    llm = (
-        ChatOllama(model=LLM_MODEL, temperature=0.0, num_predict=400)
-        .with_retry(stop_after_attempt=3, wait_exponential_jitter=True)
+    llm = get_llm(model=LLM_MODEL, temperature=0.0, max_tokens=400).with_retry(
+        stop_after_attempt=3, wait_exponential_jitter=True
     )
     messages = [
         SystemMessage(content="You are a careful PostgreSQL expert."),
@@ -236,9 +235,8 @@ def _format_answer(question: str, query: str, rows: list[dict[str, Any]]) -> str
         f"The query returned these results:\n{data_text}\n\n"
         "Summarize the answer in 1-2 natural language sentences. Be concise."
     )
-    llm = (
-        ChatOllama(model=LLM_MODEL, temperature=0.0, num_predict=150)
-        .with_retry(stop_after_attempt=3, wait_exponential_jitter=True)
+    llm = get_llm(model=LLM_MODEL, temperature=0.0, max_tokens=150).with_retry(
+        stop_after_attempt=3, wait_exponential_jitter=True
     )
     response = llm.invoke([HumanMessage(content=prompt)])
     return response.content.strip()

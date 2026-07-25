@@ -19,8 +19,15 @@ class _Settings(BaseSettings):
     )
 
     # LLM settings
+    llm_provider: str = Field(default="ollama", alias="LLM_PROVIDER")
     llm_model: str = Field(default="llama3.1", alias="LLM_MODEL")
     classify_model: str | None = Field(default=None, alias="CLASSIFY_MODEL")
+    groq_api_key: str | None = Field(default=None, alias="GROQ_API_KEY")
+    groq_verify_ssl: bool = Field(default=True, alias="GROQ_VERIFY_SSL")
+    openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
+
+    # Embedding settings
+    embed_provider: str = Field(default="ollama", alias="EMBED_PROVIDER")
     embed_model: str = Field(default="nomic-embed-text", alias="EMBED_MODEL")
     ollama_host: str = Field(default="http://localhost:11434", alias="OLLAMA_HOST")
 
@@ -43,8 +50,14 @@ class _Settings(BaseSettings):
 settings = _Settings()
 
 # Module-level constants for convenience.
+LLM_PROVIDER = settings.llm_provider
 LLM_MODEL = settings.llm_model
 CLASSIFY_MODEL = settings.classify_model or settings.llm_model
+GROQ_API_KEY = settings.groq_api_key
+GROQ_VERIFY_SSL = settings.groq_verify_ssl
+OPENAI_API_KEY = settings.openai_api_key
+
+EMBED_PROVIDER = settings.embed_provider
 EMBED_MODEL = settings.embed_model
 OLLAMA_HOST = settings.ollama_host
 
