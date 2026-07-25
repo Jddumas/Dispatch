@@ -6,7 +6,7 @@ A production-ready multi-agent AI support system built with **LangGraph**, **Fas
 
 ## Live Demo
 
-- Chat UI: *[Streamlit app URL to be added after Streamlit Cloud deployment]*
+- Chat UI: https://jddumas-dispatch-frontendstreamlit-app-0vjeqj.streamlit.app
 - API Base: https://dispatch-api-27sb.onrender.com
 - API Docs: https://dispatch-api-27sb.onrender.com/docs
 

@@ -101,4 +101,4 @@
 - [x] Add Groq/OpenAI provider abstraction so the same backend runs on local Ollama or hosted cloud LLMs
 - [x] Create Render backend blueprint and Streamlit Cloud deployment instructions
 - [x] Deploy the FastAPI backend to Render and update README Live Demo URL
-- [ ] Deploy the Streamlit frontend to Streamlit Cloud and update the chat UI URL
+- [x] Deploy the Streamlit frontend to Streamlit Cloud and update the chat UI URL
