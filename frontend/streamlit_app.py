@@ -146,9 +146,11 @@ def _handle_streaming_response(prompt: str, session_id: str) -> tuple[str, str, 
                 continue
             text = line.decode("utf-8")
             if text.startswith("event:"):
-                current_event = text.split(":", 1)[1].strip()
+                current_event = text[6:].strip()
             elif text.startswith("data:"):
-                data = text.split(":", 1)[1].strip()
+                # SSE includes one space after the colon; remove it but keep any
+                # intentional leading spaces in the payload.
+                data = text[5:].removeprefix(" ")
                 if current_event == "intent":
                     intent = data
                 elif current_event == "source":
