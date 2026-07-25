@@ -5,13 +5,14 @@ services:
     plan: free
     region: ohio
     branch: master
+    repo: https://github.com/Jddumas/Dispatch.git
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
     envVars:
       - key: LLM_PROVIDER
         value: groq
       - key: GROQ_API_KEY
-        fromEnv: GROQ_API_KEY
+        sync: false
       - key: GROQ_VERIFY_SSL
         value: "true"
       - key: LLM_MODEL
