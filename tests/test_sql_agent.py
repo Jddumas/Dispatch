@@ -1,10 +1,10 @@
-"""Tests for SQL-agent safety helpers."""
+"""Tests for SQL-agent safety and formatting helpers."""
 
 from __future__ import annotations
 
 import pytest
 
-from app.agents.sql_agent import _is_safe
+from app.agents.sql_agent import _format_sql_answer, _is_safe
 
 
 @pytest.mark.parametrize(
@@ -55,3 +55,38 @@ def test_is_safe_rejects_empty_query():
     safe, reason = _is_safe("")
     assert safe is False
     assert "empty" in reason.lower()
+
+
+def test_format_count_answer():
+    result = _format_sql_answer("How many orders are there?", [{"count": 103}])
+    assert "103" in result
+
+
+def test_format_average_answer():
+    result = _format_sql_answer("What is the average order value?", [{"avg": 766.63}])
+    assert "$766.63" in result
+
+
+def test_format_list_with_name_and_id():
+    rows = [
+        {"id": 2, "name": "Liam Johnson"},
+        {"id": 36, "name": "Joseph Scott"},
+    ]
+    result = _format_sql_answer(
+        "Which customers have an open ticket and a returned order?", rows
+    )
+    assert "**Liam Johnson** (id: 2)" in result
+    assert "**Joseph Scott** (id: 36)" in result
+    assert "\n- **" in result
+
+
+def test_format_list_without_name():
+    rows = [{"category": "Electronics", "total": 100.0}]
+    result = _format_sql_answer("What is total revenue by category?", rows)
+    assert "Electronics" in result
+    assert "$100.00" in result
+
+
+def test_format_empty_rows():
+    result = _format_sql_answer("Who has an open ticket?", [])
+    assert result == "No results found."
