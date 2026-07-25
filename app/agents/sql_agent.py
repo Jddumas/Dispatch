@@ -60,15 +60,18 @@ Do not use a trailing semicolon.
 
 
 def _build_history(messages: list[BaseMessage] | None, max_turns: int = 3) -> str:
-    """Format the most recent conversation turns for follow-up context."""
+    """Format recent user questions for follow-up context.
+
+    Assistant replies are excluded because prior natural-language answers
+    (and embedded SQL summaries) can confuse the model on the current turn.
+    """
     if not messages:
         return ""
     recent = messages[-max_turns * 2 :]
-    lines = []
-    for msg in recent:
-        role = "User" if isinstance(msg, HumanMessage) else "Assistant"
-        lines.append(f"{role}: {msg.content}")
-    return "\n".join(lines)
+    user_questions = [msg.content for msg in recent if isinstance(msg, HumanMessage)]
+    if not user_questions:
+        return ""
+    return "Previous questions:\n" + "\n".join(f"- {q}" for q in user_questions[-max_turns:])
 
 
 def _strip_comments(sql: str) -> str:
