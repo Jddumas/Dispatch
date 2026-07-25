@@ -102,9 +102,18 @@ if "session_id" not in st.session_state or st.session_state.session_id != sessio
         pass
 
 
+def _escape_text(text: str) -> str:
+    """Escape markdown characters that Streamlit's st.markdown treats as special.
+
+    Streamlit's markdown renderer interprets $...$ as math and _..._ as italic.
+    Escaping them keeps plain-text replies looking like normal black text.
+    """
+    return text.replace("$", "\\$").replace("_", "\\_")
+
+
 def _display_message(msg: dict) -> None:
     with st.chat_message(msg["role"]):
-        st.write(msg["content"])
+        st.write(_escape_text(msg["content"]))
         if msg.get("intent"):
             with st.expander("Details"):
                 st.write(f"Intent: `{msg['intent']}`")
@@ -161,7 +170,7 @@ def _handle_streaming_response(prompt: str, session_id: str) -> tuple[str, str, 
                     rows = json.loads(data)
                 elif current_event == "message":
                     reply += data
-                    placeholder.markdown(reply)
+                    placeholder.markdown(_escape_text(reply))
                 elif current_event == "done":
                     break
 
@@ -181,7 +190,7 @@ def _handle_sync_response(prompt: str, session_id: str) -> tuple[str, str, list[
     sources = data.get("sources", [])
     sql_query = data.get("sql_query", "")
     rows = data.get("data") or None
-    st.write(reply)
+    st.write(_escape_text(reply))
     return reply, intent, sources, sql_query, rows
 
 
