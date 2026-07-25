@@ -1,6 +1,7 @@
 """RAG agent node: answer questions from the indexed knowledge base."""
 
 import logging
+from typing import Any
 
 from app.agents.state import AgentState, last_human_message
 from app.tools import retriever
@@ -20,7 +21,7 @@ def _extract_sources(matches: list[dict]) -> list[str]:
     return sources
 
 
-def rag_node(state: AgentState) -> dict[str, str]:
+def rag_node(state: AgentState) -> dict[str, Any]:
     """Retrieve context and answer the user's question from the knowledge base."""
     question = last_human_message(state)
     try:
@@ -28,10 +29,14 @@ def rag_node(state: AgentState) -> dict[str, str]:
         return {
             "result": answer["answer"],
             "sources": _extract_sources(answer.get("matches", [])),
+            "sql_query": "",
+            "data": [],
         }
     except Exception:
         logger.exception("RAG agent failed")
         return {
             "result": "I couldn't look up that information right now. Please try again later.",
             "sources": [],
+            "sql_query": "",
+            "data": [],
         }

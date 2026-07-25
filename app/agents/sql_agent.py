@@ -278,6 +278,7 @@ def sql_node(state: AgentState) -> dict[str, Any]:
             "result": result["answer"],
             "sql_query": result.get("query", ""),
             "data": result.get("rows") or [],
+            "sources": [],
         }
     except Exception:
         logger.exception("SQL agent node failed")
@@ -285,4 +286,5 @@ def sql_node(state: AgentState) -> dict[str, Any]:
             "result": "I couldn't query the database right now. Please try again later.",
             "sql_query": "",
             "data": [],
+            "sources": [],
         }

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 
@@ -77,8 +78,13 @@ def run_action_agent(question: str) -> dict[str, str]:
         return {"answer": "I couldn't complete that action right now. Please try again later."}
 
 
-def action_node(state: AgentState) -> dict[str, str]:
+def action_node(state: AgentState) -> dict[str, Any]:
     """Run the action agent on the latest user message."""
     question = last_human_message(state)
     result = run_action_agent(question)
-    return {"result": result["answer"]}
+    return {
+        "result": result["answer"],
+        "sources": [],
+        "sql_query": "",
+        "data": [],
+    }

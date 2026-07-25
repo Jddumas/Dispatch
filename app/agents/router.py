@@ -121,7 +121,7 @@ def fallback_node(state: AgentState) -> dict:
     """Return a graceful fallback message."""
     result = state.get("result") or "I'm sorry, I couldn't handle that request. Can you rephrase?"
     logger.info("Falling back with result: %s", result)
-    return {"result": result}
+    return {"result": result, "sources": [], "sql_query": "", "data": []}
 
 
 def general_node(state: AgentState) -> dict:
@@ -134,10 +134,10 @@ def general_node(state: AgentState) -> dict:
                 *state["messages"],
             ]
         )
-        return {"result": response.content}
+        return {"result": response.content, "sources": [], "sql_query": "", "data": []}
     except Exception:
         logger.exception("General node failed")
-        return {"result": "I'm having trouble responding right now. Please try again."}
+        return {"result": "I'm having trouble responding right now. Please try again.", "sources": [], "sql_query": "", "data": []}
 
 
 def format_response(state: AgentState) -> dict:
