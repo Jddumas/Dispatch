@@ -130,7 +130,13 @@ def general_node(state: AgentState) -> dict:
         llm = get_llm(model=LLM_MODEL, temperature=0.0, max_tokens=400)
         response = llm.invoke(
             [
-                SystemMessage(content="You are a helpful support assistant."),
+                SystemMessage(
+                    content=(
+                        "You are a helpful support assistant. Answer in plain text "
+                        "sentences and paragraphs; do not use markdown formatting, "
+                        "bold markers, or numbered lists."
+                    )
+                ),
                 *state["messages"],
             ]
         )
