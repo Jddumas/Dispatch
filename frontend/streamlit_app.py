@@ -8,8 +8,16 @@ import os
 import pandas as pd
 import requests
 import streamlit as st
+from streamlit.errors import StreamlitSecretNotFoundError
 
-API_URL = os.getenv("API_URL", st.secrets.get("API_URL", "http://localhost:8000"))
+_API_URL_ENV = os.environ.get("API_URL")
+if _API_URL_ENV:
+    API_URL = _API_URL_ENV
+else:
+    try:
+        API_URL = st.secrets.get("API_URL", "http://localhost:8000")
+    except StreamlitSecretNotFoundError:
+        API_URL = "http://localhost:8000"
 CHAT_ENDPOINT = f"{API_URL}/chat/stream"
 SYNC_CHAT_ENDPOINT = f"{API_URL}/chat"
 HISTORY_ENDPOINT = f"{API_URL}/sessions"
