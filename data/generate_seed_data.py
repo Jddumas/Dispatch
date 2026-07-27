@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 random.seed(42)
@@ -97,6 +97,11 @@ ACCOUNT_NOTES = [
     "Prefers contact via email.",
     "Account created from referral program.",
 ]
+LOYALTY_TIERS = ["bronze", "silver", "gold", "platinum"]
+REGIONS = ["North", "South", "East", "West", "Central"]
+ACCOUNT_STATUSES = ["active", "inactive"]
+PREFERRED_CONTACT = ["email", "email", "phone", "chat", "sms"]
+SIGNUP_SOURCES = ["organic", "referral", "paid_ad", "partner", "event"]
 
 
 def _sql_str(value: str) -> str:
@@ -104,7 +109,7 @@ def _sql_str(value: str) -> str:
 
 
 def _random_date(days_back: int = 365) -> datetime:
-    now = datetime.now()
+    now = datetime.now(tz=timezone.utc)
     delta = timedelta(seconds=random.randint(0, days_back * 24 * 3600))
     return now - delta
 
@@ -121,7 +126,17 @@ def generate_customers(count: int) -> list[dict]:
         name = f"{first} {last}"
         email = f"{first.lower()}.{last.lower()}{i}@example.com"
         created = _random_date(400)
-        customers.append({"id": i + 1, "name": name, "email": email, "created_at": created})
+        customers.append({
+            "id": i + 1,
+            "name": name,
+            "email": email,
+            "created_at": created,
+            "loyalty_tier": random.choices(LOYALTY_TIERS, weights=[30, 35, 25, 10])[0],
+            "region": REGIONS[i % len(REGIONS)],
+            "account_status": random.choices(ACCOUNT_STATUSES, weights=[80, 20])[0],
+            "preferred_contact": random.choices(PREFERRED_CONTACT, weights=[50, 20, 15, 10, 5])[0],
+            "signup_source": random.choices(SIGNUP_SOURCES, weights=[40, 20, 20, 10, 10])[0],
+        })
     return customers
 
 
@@ -306,7 +321,12 @@ def build_sql(
         "    id SERIAL PRIMARY KEY,",
         "    name VARCHAR(100) NOT NULL,",
         "    email VARCHAR(100) NOT NULL UNIQUE,",
-        "    created_at TIMESTAMP DEFAULT NOW()",
+        "    created_at TIMESTAMP DEFAULT NOW(),",
+        "    loyalty_tier VARCHAR(50),",
+        "    region VARCHAR(50),",
+        "    account_status VARCHAR(50),",
+        "    preferred_contact VARCHAR(50),",
+        "    signup_source VARCHAR(50)",
         ");",
         "",
         "CREATE TABLE products (",
@@ -383,10 +403,13 @@ def build_sql(
     ]
 
     rows = ",\n    ".join(
-        f"('{_sql_str(c['name'])}', '{_sql_str(c['email'])}', '{_date_str(c['created_at'])}')"
+        f"('{_sql_str(c['name'])}', '{_sql_str(c['email'])}', '{_date_str(c['created_at'])}', "
+        f"'{_sql_str(c['loyalty_tier'])}', '{_sql_str(c['region'])}', "
+        f"'{_sql_str(c['account_status'])}', '{_sql_str(c['preferred_contact'])}', "
+        f"'{_sql_str(c['signup_source'])}')"
         for c in customers
     )
-    lines.append(f"INSERT INTO customers (name, email, created_at) VALUES\n    {rows};")
+    lines.append(f"INSERT INTO customers (name, email, created_at, loyalty_tier, region, account_status, preferred_contact, signup_source) VALUES\n    {rows};")
     lines.append("")
 
     rows = ",\n    ".join(

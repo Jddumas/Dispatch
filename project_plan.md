@@ -919,6 +919,183 @@ Deliverables:
 
 
 ================================================================================
+WEEK 14: CUSTOMER 360° PLAIN-TEXT PROFILES
+================================================================================
+Hours: 6-8
+Goal: When a user asks about a specific customer, return one rich, accurate,
+human-readable summary as PLAIN TEXT in the chat — no card/widget UI. This
+consolidates data that already lives across many tables (orders, payments,
+shipping, refunds, tickets, notes) into a single "who is this customer" answer.
+
+Why this is impressive: it shows the agent can synthesize a cross-table view
+the way a real support rep would, from a single natural-language question.
+
+
+Design notes (read before coding)
+[ ] The existing SQL path is: sql_node -> run_sql_agent -> _generate_sql (LLM)
+    -> _is_safe -> database.execute_query_safe -> _format_sql_answer.
+    See app/agents/sql_agent.py. The profile feature reuses this pipeline; the
+    main work is (a) making sure the data is rich enough and (b) turning a
+    multi-table result into a clean plain-text block.
+[ ] Two viable implementations — pick one and note the choice:
+    Option A (deterministic, recommended): detect a "profile" question, run a
+      small set of parameterized read-only queries in database.py, and format
+      the result with a dedicated Python function (like _format_sql_answer).
+      Pros: reliable, no card, fully in our control, easy to eval.
+    Option B (LLM-driven): extend _SCHEMA_PROMPT so the LLM writes one big
+      JOIN/CTE and let _format_answer summarize it. Simpler to wire, but less
+      predictable for a demo.
+
+
+Day 1-2: Enrich customer data (3 hrs)
+[ ] Extend the customers table in data/seed_data.sql with demo-worthy fields:
+    loyalty_tier, region, account_status, preferred_contact, signup_source.
+    (Lifetime spend, order count, last order date, open tickets, refund total
+    are DERIVED — compute them in SQL, don't store them.)
+[ ] Update _SCHEMA_PROMPT in app/agents/sql_agent.py so the new columns exist
+    in the schema the LLM sees.
+[ ] Re-seed PostgreSQL and re-index if needed (see AGENTS.md commands), then
+    sanity-check a couple of profile-style queries by hand.
+
+
+Day 3-4: Build the profile answer (3 hrs)
+[ ] Add profile detection: a question like "tell me about customer 42",
+    "who is Jane Smith", "give me a summary of customer 7". Match on
+    customer id OR name (use ILIKE for names, matching existing convention).
+[ ] Add a build_customer_profile(customer_id | name) helper (in sql_agent.py
+    or a small new module) that gathers:
+      - identity: name, email, region, loyalty_tier, account_status, tenure
+      - spend: lifetime total, order count, average order value
+      - recent activity: last order date + status, last payment method
+      - support: open ticket count, most recent ticket subject
+      - flags worth mentioning: any refunds, latest account note
+[ ] Format it as 6-10 lines of PLAIN TEXT (no markdown tables, no card),
+    consistent with general_node's "plain text only" style. Return it via the
+    normal result/sql_query/data channel so it streams like any other answer.
+[ ] Edge cases: unknown customer, ambiguous name (multiple matches -> ask
+    which one, or list the candidates), customer with zero orders.
+
+
+Day 5: Test and eval (2 hrs)
+[ ] Add categorized example prompts to the Streamlit sidebar
+    (frontend/streamlit_app.py), e.g. "Tell me about customer 42".
+[ ] Add eval cases to eval/test_cases.json checking the profile answer
+    contains the expected fields (name, tier, order count, etc.).
+[ ] Run: .\venv\Scripts\python.exe -m pytest tests -v and
+    .\venv\Scripts\python.exe -m eval.run_eval ; update README examples.
+
+
+Deliverables:
+[ ] Richer customers table + updated schema prompt, re-seeded
+[ ] A plain-text Customer 360° answer returned through the normal chat flow
+[ ] Sidebar examples + eval cases added; tests and eval passing
+
+
+================================================================================
+WEEK 15: CHURN RISK PREDICTION (SEPARATE FEATURE)
+================================================================================
+Hours: 6-8
+Goal: Answer "is this customer at risk of churning?" with an explainable,
+deterministic risk rating in PLAIN TEXT. This is a DISTINCT feature from the
+Week 14 profile — different question, different answer shape — so churn scoring
+never clutters the standard profile summary.
+
+Why this is impressive: it layers a small, transparent "model" (rules over the
+same data) on top of the 360° view and, crucially, EXPLAINS its reasoning —
+which is exactly what a hiring manager wants to see in an AI support system.
+
+
+Design notes (read before coding)
+[ ] Keep the score deterministic and explainable (a weighted rule set / SQL
+    CASE), NOT an LLM guess. The LLM's only job is phrasing the explanation.
+[ ] Reuse the Week 14 data-gathering; churn is a scoring layer on top of it.
+[ ] Router integration: the current classifier (classify_intent in
+    app/agents/router.py) only knows sql/rag/action/general. Churn questions
+    would currently fall to "sql". Decide the cleanest path and note it:
+    Option A: add a new "churn" intent + node wired into build_graph's
+      conditional edges (mirrors how sql_agent/rag_agent are added). Cleanest.
+    Option B: detect churn phrasing inside sql_node and branch to the churn
+      formatter. Less graph surgery, but muddies the SQL node.
+
+
+Day 1-2: Define the churn signals + score (3 hrs)
+[ ] Compute signals in SQL from existing tables (no ML, no new stored column):
+      - days since last order (recency)
+      - order frequency / count trend
+      - open support ticket count
+      - refunds count or refund-to-order ratio
+      - recent negative signals (e.g. tickets in last 30 days)
+[ ] Define a scoring rule that maps signals -> low / medium / high, with each
+    signal contributing points. Document the thresholds in code comments.
+[ ] Return not just the rating but the TOP 2-3 contributing factors so the
+    answer is explainable.
+
+
+Day 3-4: Churn agent path (3 hrs)
+[ ] Implement the chosen router option above. If adding a "churn" intent,
+    update ALLOWED_INTENTS, classify_intent's prompt/examples, the route map,
+    and add a churn_node to build_graph.
+[ ] Add a build_churn_assessment(customer_id | name) helper that returns the
+    rating + factors, then phrase it as a short plain-text explanation, e.g.
+    "Customer 42 is MEDIUM risk: no orders in 92 days, 2 open tickets, and one
+    recent refund." (plain text, no card).
+[ ] Confirm SQL safety guardrails (_is_safe) still apply to any generated SQL.
+
+
+Day 5: Test and eval (2 hrs)
+[ ] Add sidebar example prompts like "Is customer 42 likely to churn?" and
+    "Which customers are at high churn risk?".
+[ ] Add eval cases asserting a valid rating (low/medium/high) and that at least
+    one contributing factor is named.
+[ ] Verify the same customer always yields the same rating (deterministic);
+    run pytest + eval.
+
+
+Deliverables:
+[ ] Deterministic, documented churn scoring over existing customer data
+[ ] A separate churn intent/path that returns an explainable plain-text rating
+[ ] Sidebar examples + eval cases added; tests and eval passing
+
+
+--------------------------------------------------------------------------------
+DEMO SCRIPT — Customer 360° + Churn Risk (run these in order)
+--------------------------------------------------------------------------------
+Goal: ~2 minutes that shows off both features and how they build on each other.
+Pick one real customer id/name from the seed data first (e.g. customer 42) so
+the numbers are consistent every run. Use the same session_id/thread_id so the
+follow-up questions exercise conversation memory.
+
+1. Warm-up (shows normal SQL still works):
+   "How many orders has customer 42 placed?"
+
+2. Customer 360° profile (Week 14 — the headline):
+   "Tell me about customer 42."
+   -> Expect one plain-text summary: identity, lifetime spend + order count,
+      last order + status, open tickets, any refunds. No card, no table.
+
+3. Name-based lookup (shows ILIKE matching, not just ids):
+   "Who is Jane Smith?"
+
+4. Churn risk (Week 15 — the payoff, a SEPARATE feature):
+   "Is customer 42 likely to churn?"
+   -> Expect: a rating (low/medium/high) + the top 2-3 contributing factors,
+      e.g. "MEDIUM risk: no orders in 92 days, 2 open tickets, 1 recent refund."
+
+5. Explainability follow-up (shows memory + that the score is not a black box):
+   "Why is that?"  (or "What would lower that risk?")
+
+6. Portfolio-level view (optional wow moment, if implemented):
+   "Which customers are at high churn risk?"
+
+Talking points to say out loud while demoing:
+- The profile answer is synthesized across 6+ tables from ONE question.
+- Churn is a separate, DETERMINISTIC rule-based score — same customer always
+  gets the same rating — and the LLM only phrases the explanation.
+- Everything is plain text streamed through the same chat pipeline; no bespoke
+  UI was needed.
+
+
+================================================================================
 POST-PLAN: CONTINUED GROWTH
 ================================================================================
 
@@ -960,6 +1137,8 @@ Week  | Focus                          | Status
  11   | Optimization + Polish          | [x]
  12   | README + Blog + Apply          | [~] README/blog draft done; publish + apply pending
  13   | Demo Polish — Richer Questions | [~] Core + UI polish done; demo script + screenshots remain
+ 14   | Customer 360° Text Profiles    | [x] Implemented, seeded, lint + tests pass
+ 15   | Churn Risk Prediction          | [ ] Planned
 
 
 ================================================================================

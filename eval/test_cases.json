@@ -226,5 +226,19 @@
     "expected_intent": "general",
     "category": "general",
     "expected_keywords": ["questions", "do"]
+  },
+  {
+    "id": "profile-01",
+    "input": "Tell me about customer 1",
+    "expected_intent": "sql",
+    "category": "sql",
+    "expected_keywords": ["Customer 360", "Contact", "Account", "Spend"]
+  },
+  {
+    "id": "profile-02",
+    "input": "Who is Emma Smith?",
+    "expected_intent": "sql",
+    "category": "sql",
+    "expected_keywords": ["Emma Smith", "Customer 360", "Contact", "Spend"]
   }
 ]

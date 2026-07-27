@@ -42,6 +42,8 @@ with st.sidebar:
             "What is the Subscribe & Save discount?",
         ],
         "SQL / Account": [
+            "Tell me about customer 1",
+            "Who is Emma Smith?",
             "How many orders were placed last month?",
             "What is total revenue by product category?",
             "Which customers have an open ticket and a returned order?",

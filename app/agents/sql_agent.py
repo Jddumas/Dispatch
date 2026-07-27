@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 
@@ -38,7 +39,7 @@ _FORBIDDEN_KEYWORDS = [
 
 _SCHEMA_PROMPT = """You have access to a PostgreSQL database with these tables:
 
-customers (id, name, email, created_at)
+customers (id, name, email, created_at, loyalty_tier, region, account_status, preferred_contact, signup_source)
 products (id, name, category, price, stock_quantity)
 orders (id, customer_id, product_name, status, total, created_at)
 order_items (id, order_id, product_id, quantity, unit_price, line_total)
@@ -288,11 +289,220 @@ def run_sql_agent(question: str, messages: list[BaseMessage] | None = None) -> d
     return {"query": query, "rows": rows, "answer": answer}
 
 
+def _is_customer_profile_question(question: str) -> bool:
+    """Detect natural-language requests for a single customer's 360° summary."""
+    return _parse_customer_identifier(question) != (None, None)
+
+
+def _parse_customer_identifier(question: str) -> tuple[str | None, str | None]:
+    """Extract either a customer id or a name from a profile question."""
+    q = question.strip().rstrip(".?")
+
+    # Explicit "customer <id>" or "customer #<id>" anywhere in the question.
+    m = re.search(r"\bcustomer\s*(?:id|#)?\s*(\d+)\b", q, re.IGNORECASE)
+    if m:
+        return "id", m.group(1)
+
+    # Phrase-based capture. Remainder is either a number or a name.
+    prefixes = [
+        r"who is\s+",
+        r"tell me about\s+(?:the\s+)?",
+        r"summary of\s+(?:the\s+)?",
+        r"profile of\s+(?:the\s+)?",
+        r"info on\s+(?:the\s+)?",
+        r"information on\s+(?:the\s+)?",
+        r"what do we know about\s+(?:the\s+)?",
+        r"give me (?:a )?summary of\s+(?:the\s+)?",
+        r"give me (?:info|information) on\s+(?:the\s+)?",
+    ]
+    for prefix in prefixes:
+        m = re.match(prefix + r"(.+)", q, re.IGNORECASE)
+        if m:
+            remainder = m.group(1).strip()
+            # Strip an optional leading "customer" from the captured text.
+            inner = re.match(r"(?:customer\s+(?:id\s+|#?\s*)?)?(.+)", remainder, re.IGNORECASE)
+            if inner:
+                remainder = inner.group(1).strip()
+            if remainder.isdigit():
+                return "id", remainder
+            if len(remainder) <= 60:
+                return "name", remainder
+    return None, None
+
+
+def _resolve_customer(identifier_type: str, value: str) -> list[dict[str, Any]]:
+    """Return matching customer id/name rows."""
+    if identifier_type == "id":
+        return database.execute_query_safe(
+            "SELECT id, name FROM customers WHERE id = %s", (int(value),)
+        )
+    return database.execute_query_safe(
+        "SELECT id, name FROM customers WHERE name ILIKE %s",
+        (f"%{value}%",),
+    )
+
+
+def _build_customer_profile(customer_id: int) -> dict[str, Any]:
+    """Gather a 360° view of a single customer from across all tables."""
+    basic = database.execute_query_safe("SELECT * FROM customers WHERE id = %s", (customer_id,))[0]
+
+    order_stats = database.execute_query_safe(
+        "SELECT COALESCE(SUM(total), 0) AS lifetime_spend, COUNT(*) AS order_count, "
+        "MAX(created_at) AS last_order_date FROM orders WHERE customer_id = %s AND status != 'cancelled'",
+        (customer_id,),
+    )[0]
+
+    last_order = database.execute_query_safe(
+        "SELECT product_name, status, created_at, total FROM orders "
+        "WHERE customer_id = %s AND status != 'cancelled' ORDER BY created_at DESC LIMIT 1",
+        (customer_id,),
+    )
+
+    tickets = database.execute_query_safe(
+        "SELECT COUNT(*) AS open_count FROM support_tickets "
+        "WHERE customer_id = %s AND status = 'open'",
+        (customer_id,),
+    )[0]
+
+    ticket_subjects = database.execute_query_safe(
+        "SELECT STRING_AGG(subject, ', ') AS subjects FROM support_tickets "
+        "WHERE customer_id = %s AND status = 'open'",
+        (customer_id,),
+    )[0]["subjects"]
+
+    refunds = database.execute_query_safe(
+        "SELECT COUNT(*) AS refund_count, COALESCE(SUM(r.amount), 0) AS refund_total "
+        "FROM refunds r JOIN orders o ON r.order_id = o.id "
+        "WHERE o.customer_id = %s AND r.status = 'completed'",
+        (customer_id,),
+    )[0]
+
+    last_note = database.execute_query_safe(
+        "SELECT note, created_at FROM account_notes WHERE customer_id = %s "
+        "ORDER BY created_at DESC LIMIT 1",
+        (customer_id,),
+    )
+
+    last_payment = database.execute_query_safe(
+        "SELECT p.method, p.status FROM payments p "
+        "JOIN orders o ON p.order_id = o.id WHERE o.customer_id = %s "
+        "ORDER BY p.created_at DESC LIMIT 1",
+        (customer_id,),
+    )
+
+    return {
+        "basic": basic,
+        "order_stats": order_stats,
+        "last_order": last_order[0] if last_order else None,
+        "open_tickets": tickets,
+        "open_subjects": ticket_subjects,
+        "refunds": refunds,
+        "last_note": last_note[0] if last_note else None,
+        "last_payment": last_payment[0] if last_payment else None,
+    }
+
+
+def _format_customer_profile(profile: dict[str, Any]) -> str:
+    """Format a customer 360° profile as 6-10 plain-text lines."""
+    c = profile["basic"]
+    spend = float(profile["order_stats"]["lifetime_spend"] or 0)
+    order_count = profile["order_stats"]["order_count"] or 0
+    aov = spend / order_count if order_count else 0
+    signup = c["created_at"].strftime("%Y-%m-%d")
+    tenure = (
+        datetime.now(timezone.utc) - c["created_at"].replace(tzinfo=timezone.utc)
+    ).days
+
+    last_order = profile["last_order"]
+    if last_order:
+        date = last_order["created_at"].strftime("%Y-%m-%d")
+        last_order_line = (
+            f"{last_order['product_name']} on {date} - status: {last_order['status']} "
+            f"(${float(last_order['total']):,.2f})"
+        )
+    else:
+        last_order_line = "none"
+
+    open_count = profile["open_tickets"]["open_count"]
+    subjects = profile["open_subjects"]
+    if open_count:
+        support_line = f"{open_count} open ticket(s)"
+        if subjects:
+            support_line += f" ({subjects})"
+    else:
+        support_line = "no open tickets"
+
+    refund_count = profile["refunds"]["refund_count"]
+    refund_total = float(profile["refunds"]["refund_total"] or 0)
+    refund_line = (
+        f"{refund_count} ({_format_value(refund_total)})" if refund_count else "none"
+    )
+
+    lines = [
+        f"Customer 360 for {c['name']} (ID {c['id']}):",
+        f"Contact: {c['email']}; preferred contact: {c['preferred_contact']}",
+        (
+            f"Account: {c['account_status']}, {c['loyalty_tier']} tier, region {c['region']}, "
+            f"signed up {signup} ({tenure} days ago) via {c['signup_source']}"
+        ),
+        f"Spend: {_format_value(spend)} across {order_count} order(s); average order {_format_value(aov)}",
+        f"Last order: {last_order_line}",
+        f"Support: {support_line}",
+        f"Refunds: {refund_line}",
+    ]
+
+    if profile["last_note"]:
+        note = profile["last_note"]
+        note_date = note["created_at"].strftime("%Y-%m-%d")
+        lines.append(f"Latest note: {note['note']} ({note_date})")
+
+    return "\n".join(lines)
+
+
+def run_customer_profile_agent(question: str) -> dict[str, Any]:
+    """Resolve a customer and return a plain-text 360° profile."""
+    identifier_type, value = _parse_customer_identifier(question)
+    if not identifier_type:
+        return {
+            "query": "",
+            "rows": [],
+            "answer": "I can look up a customer profile if you provide a customer id or name.",
+        }
+
+    matches = _resolve_customer(identifier_type, value)
+    if not matches:
+        return {
+            "query": "",
+            "rows": [],
+            "answer": f"I couldn't find a customer matching '{value}'.",
+        }
+
+    if len(matches) > 1:
+        candidates = ", ".join(f"{m['name']} (ID {m['id']})" for m in matches)
+        return {
+            "query": "",
+            "rows": [],
+            "answer": f"I found multiple customers matching '{value}': {candidates}. Please be more specific.",
+        }
+
+    customer_id = matches[0]["id"]
+    profile = _build_customer_profile(customer_id)
+    answer = _format_customer_profile(profile)
+    return {
+        "query": "Customer 360 profile lookup (read-only SELECT statements)",
+        "rows": [profile],
+        "answer": answer,
+    }
+
+
 def sql_node(state: AgentState) -> dict[str, Any]:
-    """Run the SQL agent on the latest user message and conversation history."""
+    """Run the SQL agent or customer-profile agent on the latest user message."""
     question = last_human_message(state)
     try:
-        result = run_sql_agent(question, messages=state["messages"])
+        if _is_customer_profile_question(question):
+            result = run_customer_profile_agent(question)
+        else:
+            result = run_sql_agent(question, messages=state["messages"])
         return {
             "result": result["answer"],
             "sql_query": result.get("query", ""),

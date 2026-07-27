@@ -1,7 +1,7 @@
 # Dispatch Tasks
 
 ## Current
-- [ ] Deploy the FastAPI backend and Streamlit frontend, and replace placeholder Live Demo URLs in README.md
+- [ ] Week 15: implement churn risk prediction as a separate plain-text feature
 
 ## Next
 - [ ] Week 13 (remaining): record a repeatable demo script and re-capture screenshots after deployment
@@ -102,3 +102,4 @@
 - [x] Create Render backend blueprint and Streamlit Cloud deployment instructions
 - [x] Deploy the FastAPI backend to Render and update README Live Demo URL
 - [x] Deploy the Streamlit frontend to Streamlit Cloud and update the chat UI URL
+- [x] Week 14: implement Customer 360° plain-text profile (enrich customer data, SQL formatter, eval cases)
