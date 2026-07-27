@@ -34,6 +34,11 @@ with st.sidebar:
 
     st.subheader("Example questions")
     example_questions = {
+        "Customer 360°": [
+            "Tell me about customer 1",
+            "Who is Emma Smith?",
+            "Give me a summary of customer 7",
+        ],
         "RAG / Policy": [
             "What is the return policy?",
             "How do I reset my password?",
@@ -42,8 +47,6 @@ with st.sidebar:
             "What is the Subscribe & Save discount?",
         ],
         "SQL / Account": [
-            "Tell me about customer 1",
-            "Who is Emma Smith?",
             "How many orders were placed last month?",
             "What is total revenue by product category?",
             "Which customers have an open ticket and a returned order?",
