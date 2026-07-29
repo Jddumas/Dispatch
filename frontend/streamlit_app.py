@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import uuid
 from datetime import datetime, timezone
 
 import pandas as pd
@@ -98,8 +99,11 @@ with st.sidebar:
                     st.rerun()
     st.markdown("---")
 
-    session_id = st.text_input("Session ID", value="streamlit_user", key="session_id_input")
     use_streaming = st.checkbox("Use streaming response", value=True)
+    if st.session_state.get("dev_mode"):
+        session_id = st.text_input("Session ID", value=st.session_state.get("auto_session_id", ""), key="session_id_input")
+    else:
+        session_id = st.session_state.get("auto_session_id", "")
 
     if st.button("Clear chat", use_container_width=True):
         st.session_state.messages = []
@@ -120,6 +124,9 @@ with st.sidebar:
     st.markdown("---")
     st.checkbox("Developer mode", value=False, key="dev_mode")
 
+
+if "auto_session_id" not in st.session_state:
+    st.session_state.auto_session_id = str(uuid.uuid4())
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
