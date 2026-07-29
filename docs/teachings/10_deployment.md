@@ -103,7 +103,7 @@ services:
 **Streamlit Cloud** hosts the frontend separately. It needs only one secret:
 ```toml
 # Streamlit Cloud secrets
-API_URL = "https://otto-api.onrender.com"
+API_URL = "https://otto-api-qsk6.onrender.com"
 ```
 
 The backend and frontend are completely decoupled — Render handles the API, Streamlit Cloud handles the UI.

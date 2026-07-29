@@ -5,8 +5,8 @@ A production-ready multi-agent AI support system built with **LangGraph**, **Fas
 ## Live Demo
 
 - Chat UI: *(coming soon)*
-- API Base: *(coming soon)*
-- API Docs: *(coming soon)*
+- API Base: https://otto-api-qsk6.onrender.com
+- API Docs: https://otto-api-qsk6.onrender.com/docs
 
 ## Features
 
