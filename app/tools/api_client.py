@@ -26,7 +26,7 @@ def get_weather(location: str) -> str:
             url = "https://api.openweathermap.org/data/2.5/weather"
             resp = httpx.get(
                 url,
-                params={"q": location, "appid": OPENWEATHER_API_KEY, "units": "metric"},
+                params={"q": location, "appid": OPENWEATHER_API_KEY, "units": "imperial"},
                 timeout=5,
             )
             resp.raise_for_status()
@@ -36,8 +36,8 @@ def get_weather(location: str) -> str:
             humidity = data["main"]["humidity"]
             wind = data["wind"]["speed"]
             return (
-                f"Weather in {location}: {description}, {temp:.1f}°C, "
-                f"humidity {humidity}%, wind {wind} m/s."
+                f"Weather in {location}: {description}, {temp:.1f}°F, "
+                f"humidity {humidity}%, wind {wind} mph."
             )
         except Exception:
             logger.warning("OpenWeatherMap request failed for %s; using mock", location)
@@ -58,15 +58,17 @@ def send_notification(recipient: str, message: str) -> str:
 
 @tool
 def create_support_ticket(
-    customer_id: int,
+    customer_id: int | str,
     subject: str,
     description: str,
-    order_id: int | None = None,
+    order_id: int | str | None = None,
 ) -> str:
     """Create a support ticket in the database.
 
     Use this when the user asks to open, create, or file a support ticket.
     """
+    customer_id = int(customer_id)
+    order_id = int(order_id) if order_id is not None else None
     query = """
         INSERT INTO support_tickets (customer_id, order_id, subject, description, status)
         VALUES (%s, %s, %s, %s, 'open')
@@ -78,8 +80,9 @@ def create_support_ticket(
 
 
 @tool
-def lookup_order(order_id: int) -> str:
+def lookup_order(order_id: int | str) -> str:
     """Look up details for a specific order by ID: status, product, total, payment method, carrier."""
+    order_id = int(order_id)
     rows = database.execute_query_safe(
         """
         SELECT o.id, o.product_name, o.status, o.total, o.created_at,
@@ -132,8 +135,9 @@ def get_customer_by_email(email: str) -> str:
 
 
 @tool
-def update_ticket_status(ticket_id: int, new_status: str) -> str:
+def update_ticket_status(ticket_id: int | str, new_status: str) -> str:
     """Update the status of a support ticket. Allowed statuses: open, in_progress, resolved, closed."""
+    ticket_id = int(ticket_id)
     if new_status not in _ALLOWED_TICKET_STATUSES:
         return (
             f"Invalid status '{new_status}'. Allowed values: "
@@ -150,8 +154,9 @@ def update_ticket_status(ticket_id: int, new_status: str) -> str:
 
 
 @tool
-def close_ticket(ticket_id: int, resolution_note: str) -> str:
+def close_ticket(ticket_id: int | str, resolution_note: str) -> str:
     """Close a support ticket and record a resolution note on the customer's account."""
+    ticket_id = int(ticket_id)
     rowcount = database.execute_query(
         "UPDATE support_tickets SET status = 'closed' WHERE id = %s",
         (ticket_id,),
