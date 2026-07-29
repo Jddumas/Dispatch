@@ -69,14 +69,17 @@ def create_support_ticket(
     """
     customer_id = int(customer_id)
     order_id = int(order_id) if order_id is not None else None
-    query = """
+    rows = database.execute_query(
+        """
         INSERT INTO support_tickets (customer_id, order_id, subject, description, status)
         VALUES (%s, %s, %s, %s, 'open')
-    """
-    rowcount = database.execute_query(
-        query, (customer_id, order_id, subject, description), fetch=False
+        RETURNING id
+        """,
+        (customer_id, order_id, subject, description),
+        fetch=True,
     )
-    return f"Created {rowcount} support ticket(s) for customer {customer_id}."
+    ticket_id = rows[0]["id"] if rows else "unknown"
+    return f"Support ticket #{ticket_id} created for customer {customer_id} (status: open)."
 
 
 @tool
