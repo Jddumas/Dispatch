@@ -101,7 +101,7 @@ with st.sidebar:
             "Update ticket 82 status to in progress",
             "Close ticket 82 with note: replacement shipped to customer",
             "Find the customer with email marcus.johnson@example.com",
-            "What is the weather in Paris?",
+            "What is the weather in Austin?",
         ],
         "Hybrid (RAG + SQL)": [
             "Is Sarah Chen's last order still eligible for a return?",
