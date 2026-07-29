@@ -1,4 +1,4 @@
-"""Dispatch AI agent package."""
+"""Otto agent package."""
 
 from app.agents.router import build_graph, get_graph, get_thread_history, run_agent
 from app.config import setup_logging

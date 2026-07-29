@@ -1,14 +1,14 @@
-# Building Dispatch AI: A Production Multi-Agent System from Scratch
+# Building Otto: A Production Multi-Agent System from Scratch
 
 ## Introduction
 
-Over the last three months I built **Dispatch AI**, a production-oriented customer-support assistant that can answer policy questions, query a PostgreSQL database, and execute simple actions — all powered by local LLMs. The goal was not just to chain a model to an API, but to design a maintainable, observable, multi-agent system that could be deployed on modest hardware without paying per-token fees.
+Over the last three months I built **Otto**, a production-oriented customer-support assistant that can answer policy questions, query a PostgreSQL database, and execute simple actions — all powered by local LLMs. The goal was not just to chain a model to an API, but to design a maintainable, observable, multi-agent system that could be deployed on modest hardware without paying per-token fees.
 
 In this post I walk through the architecture, the key engineering decisions, the mistakes I made, and how I evaluated the result.
 
 ## What I Built and Why
 
-Customer-support chatbots usually fall into one of two traps: they either give generic answers with no grounding in company data, or they are rigid rule-based systems that cannot handle nuance. I wanted Dispatch AI to combine the best of both:
+Customer-support chatbots usually fall into one of two traps: they either give generic answers with no grounding in company data, or they are rigid rule-based systems that cannot handle nuance. I wanted Otto to combine the best of both:
 
 - **Grounded answers** from a knowledge base (RAG).
 - **Live data** from a PostgreSQL database (SQL).
@@ -20,7 +20,7 @@ The result is a FastAPI backend, a Streamlit frontend, a LangGraph agent graph, 
 
 ## Architecture Decisions
 
-Dispatch AI follows a router pattern. When a message arrives, the router node classifies it into one of four intents:
+Otto follows a router pattern. When a message arrives, the router node classifies it into one of four intents:
 
 ```text
 sql     -> SQL Agent
@@ -157,7 +157,7 @@ The FastAPI app exposes a `/metrics` endpoint and logs every request with method
 ```bash
 LANGCHAIN_TRACING_V2=true
 LANGCHAIN_API_KEY=lsv2_...
-LANGCHAIN_PROJECT=dispatch-ai
+LANGCHAIN_PROJECT=otto
 ```
 
 ## Lessons Learned
@@ -178,6 +178,6 @@ LANGCHAIN_PROJECT=dispatch-ai
 
 ## Conclusion
 
-Dispatch AI is not a toy. It has routing, memory, safety, observability, tests, linting, Docker, and an evaluation suite. More importantly, it is a reproducible, local-first blueprint for building agentic systems that can be extended to real support domains, internal tooling, or any scenario where grounded, multi-step reasoning is needed.
+Otto is not a toy. It has routing, memory, safety, observability, tests, linting, Docker, and an evaluation suite. More importantly, it is a reproducible, local-first blueprint for building agentic systems that can be extended to real support domains, internal tooling, or any scenario where grounded, multi-step reasoning is needed.
 
 The full code is on GitHub. I am excited to apply these patterns to production use cases and to keep iterating as local models get faster and smaller.

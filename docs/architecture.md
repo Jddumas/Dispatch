@@ -1,8 +1,8 @@
-# Dispatch AI — Architecture
+# Otto — Architecture
 
 ## System Overview
 
-Dispatch AI is a multi-agent customer-support system. A user asks a question through the Streamlit frontend or directly via the FastAPI backend. The backend runs a LangGraph agent that classifies the question's intent and routes it to one of four specialist agents: SQL, RAG, action, or general. Each agent uses a local Ollama model and the appropriate data source or tool.
+Otto is a multi-agent customer-support system. A user asks a question through the Streamlit frontend or directly via the FastAPI backend. The backend runs a LangGraph agent that classifies the question's intent and routes it to one of four specialist agents: SQL, RAG, action, or general. Each agent uses a local Ollama model and the appropriate data source or tool.
 
 ## Architecture Diagram
 

@@ -1,5 +1,5 @@
 
-Here is the full plan. Select all, copy, and paste into any text editor. Save as `dispatch-ai-build-plan.md` or `.txt`.
+Here is the full plan. Select all, copy, and paste into any text editor. Save as `otto-build-plan.md` or `.txt`.
 
 ---
 
@@ -32,7 +32,7 @@ Tech Stack:
 - Ollama (local LLM)
 - GitHub (version control and portfolio)
 
-GitHub Repo Name: dispatch-ai
+GitHub Repo Name: otto
 
 
 ================================================================================
@@ -50,12 +50,12 @@ Setup Checklist:
 [ ] Create a LangSmith account (https://smith.langchain.com) — free tier (optional, for tracing)
 [ ] Install Docker Desktop
 [x] Install PostgreSQL locally (or use Docker for it)
-[x] Create a new GitHub repository called "dispatch-ai"
+[x] Create a new GitHub repository called "otto"
 
 
 Folder Structure:
 
-dispatch-ai/
+otto/
 ├── README.md
 ├── .env
 ├── .gitignore
@@ -453,7 +453,7 @@ Day 1-2: FastAPI Basics (3 hrs)
     from fastapi import FastAPI
     from pydantic import BaseModel
 
-    app = FastAPI(title="Dispatch AI — Support Agent API")
+    app = FastAPI(title="Otto — Support Agent API")
 
     class ChatRequest(BaseModel):
         message: str
@@ -513,7 +513,7 @@ Day 1-2: LangSmith Integration (4 hrs)
 
     LANGCHAIN_TRACING_V2=true
     LANGCHAIN_API_KEY=your_key
-    LANGCHAIN_PROJECT=dispatch-ai
+    LANGCHAIN_PROJECT=otto
 
 [ ] Run your agent and verify traces appear in LangSmith dashboard
 [ ] Explore: see each step, latency per node, token usage, inputs/outputs
@@ -553,7 +553,7 @@ Day 3-5: Evaluation Suite (7 hrs)
         - Error rate: did any requests fail?
     - Output a summary report:
 
-    === Dispatch AI Evaluation Report ===
+    === Otto Evaluation Report ===
     Total test cases: 20
     Intent accuracy: 95% (19/20)
     Answer relevance: 85% (17/20)
@@ -667,8 +667,8 @@ Day 1-3: Build the Chat Interface (6 hrs)
     import streamlit as st
     import requests
 
-    st.set_page_config(page_title="Dispatch AI", page_icon="🤖")
-    st.title("🤖 Dispatch AI — Support Agent")
+    st.set_page_config(page_title="Otto", page_icon="🤖")
+    st.title("🤖 Otto — Support Agent")
 
     API_URL = st.secrets.get("API_URL", "http://localhost:8000")
 
@@ -787,7 +787,7 @@ Goal: Make everything presentable and start applying.
 Day 1-2: README (4 hrs)
 [x] Write a stellar README.md:
 
-    # 🤖 Dispatch AI
+    # 🤖 Otto
 
     A production-ready multi-agent AI system built with LangGraph, FastAPI,
     and PostgreSQL. Routes customer queries to specialized agents for
@@ -833,7 +833,7 @@ Day 1-2: README (4 hrs)
 
 Day 3-4: Blog Post (5 hrs)
 [ ] Write a blog post (1500-2000 words) on Medium or Dev.to:
-    Title: "Building Dispatch AI: A Production Multi-Agent System from Scratch"
+    Title: "Building Otto: A Production Multi-Agent System from Scratch"
     Sections:
         1. What I built and why
         2. Architecture decisions

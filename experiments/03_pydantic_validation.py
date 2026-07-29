@@ -142,7 +142,7 @@ class DatabaseConfig(BaseModel):
 
 class AppConfig(BaseModel):
     """Application configuration."""
-    app_name: str = "Dispatch AI"
+    app_name: str = "Otto"
     debug: bool = False
     database: DatabaseConfig
     api_keys: List[str] = Field(default_factory=list)
@@ -250,7 +250,7 @@ def demo_config():
             port=5432,
             username="admin",
             password="secret",
-            database="dispatch_ai"
+            database="otto"
         )
     )
     
@@ -306,4 +306,4 @@ if __name__ == "__main__":
     print("\n[Next steps]")
     print("   - Install pydantic: pip install pydantic")
     print("   - Run this file: python experiments/03_pydantic_validation.py")
-    print("   - Try creating your own models for the Dispatch AI project")
+    print("   - Try creating your own models for the Otto project")

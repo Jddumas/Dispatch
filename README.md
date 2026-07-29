@@ -1,4 +1,4 @@
-# 🤖 Dispatch AI
+# 🤖 Otto
 
 A production-ready multi-agent AI support system built with **LangGraph**, **FastAPI**, **PostgreSQL**, **ChromaDB**, and **Ollama**. It routes customer questions to specialized agents for knowledge-base Q&A, safe SQL queries, automated actions, and general conversation — with conversation memory, streaming responses, and observability built in.
 

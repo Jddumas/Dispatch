@@ -1,4 +1,4 @@
-"""Generate richer seed data for the Dispatch AI demo database."""
+"""Generate richer seed data for the Otto demo database."""
 
 from __future__ import annotations
 
@@ -304,7 +304,7 @@ def build_sql(
     notes: list[dict],
 ) -> str:
     lines = [
-        "-- Dispatch AI seed data",
+        "-- Otto seed data",
         "-- Generated automatically by data/generate_seed_data.py; do not hand-edit.",
         "",
         "DROP TABLE IF EXISTS account_notes;",

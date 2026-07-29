@@ -5,7 +5,7 @@ Set these in your .env file (or environment) before running:
 
     LANGCHAIN_TRACING_V2=true
     LANGCHAIN_API_KEY=lsv2_...
-    LANGCHAIN_PROJECT=dispatch-ai
+    LANGCHAIN_PROJECT=otto
 
 Then run this script and check the LangSmith dashboard for the project.
 """
@@ -21,14 +21,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 def main() -> None:
     api_key = os.getenv("LANGCHAIN_API_KEY")
-    project = os.getenv("LANGCHAIN_PROJECT", "dispatch-ai")
+    project = os.getenv("LANGCHAIN_PROJECT", "otto")
 
     if not api_key:
         print("LANGCHAIN_API_KEY is not set. Add it to .env and rerun.")
         print("Example .env entries:")
         print("  LANGCHAIN_TRACING_V2=true")
         print("  LANGCHAIN_API_KEY=lsv2_...")
-        print("  LANGCHAIN_PROJECT=dispatch-ai")
+        print("  LANGCHAIN_PROJECT=otto")
         return
 
     # Enable tracing for this run (idempotent if already set in .env).

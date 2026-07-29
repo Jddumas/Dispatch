@@ -1,4 +1,4 @@
-"""Dispatch AI LangGraph router and compiled graph."""
+"""Otto LangGraph router and compiled graph."""
 
 from __future__ import annotations
 

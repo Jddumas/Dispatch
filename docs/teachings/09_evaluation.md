@@ -19,7 +19,7 @@ The experiment sets up LangSmith tracing and runs the agent:
 import os
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_API_KEY"] = "lsv2_..."
-os.environ["LANGCHAIN_PROJECT"] = "dispatch-ai"
+os.environ["LANGCHAIN_PROJECT"] = "otto"
 
 from app.agents import run_agent
 

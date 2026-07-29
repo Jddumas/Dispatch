@@ -1,10 +1,10 @@
-# Dispatch AI — Learning Journey Overview
+# Otto — Learning Journey Overview
 
-This folder documents what was built in Dispatch AI, step by step. Each file explains one concept: what it is, how it was prototyped in the `experiments/` folder, and where it lives in the production app.
+This folder documents what was built in Otto, step by step. Each file explains one concept: what it is, how it was prototyped in the `experiments/` folder, and where it lives in the production app.
 
 ## The Big Picture
 
-Dispatch AI is a multi-agent AI support system. A user asks a question in natural language; a classifier routes it to the right specialist; the specialist answers using a database, a knowledge base, or external tools; the answer streams back to the UI.
+Otto is a multi-agent AI support system. A user asks a question in natural language; a classifier routes it to the right specialist; the specialist answers using a database, a knowledge base, or external tools; the answer streams back to the UI.
 
 ```
 User (Streamlit)

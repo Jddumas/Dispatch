@@ -1,4 +1,4 @@
-# Dispatch AI — Interview Cheat Sheet
+# Otto — Interview Cheat Sheet
 
 A standalone reference for talking about this project in a technical interview. Read the full question and answer aloud before the interview — you want to answer in under 90 seconds without notes.
 
@@ -6,7 +6,7 @@ A standalone reference for talking about this project in a technical interview. 
 
 ## The Elevator Pitch
 
-> "I built Dispatch AI — a multi-agent AI support system. Users ask questions in natural language; a classifier routes them to the right specialist agent; the agent answers using either a PostgreSQL database, a ChromaDB knowledge base, or external tools. The whole thing is orchestrated with LangGraph, served via FastAPI with streaming responses, and runs locally on Ollama or deploys to Render with Groq."
+> "I built Otto — a multi-agent AI support system. Users ask questions in natural language; a classifier routes them to the right specialist agent; the agent answers using either a PostgreSQL database, a ChromaDB knowledge base, or external tools. The whole thing is orchestrated with LangGraph, served via FastAPI with streaming responses, and runs locally on Ollama or deploys to Render with Groq."
 
 That's 3 sentences. Use it as the opener for any "tell me about your project" question.
 

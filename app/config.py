@@ -1,4 +1,4 @@
-"""Central configuration and helpers for the Dispatch AI backend."""
+"""Central configuration and helpers for the Otto backend."""
 
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ class _Settings(BaseSettings):
     # LangSmith tracing
     langchain_tracing_v2: bool = Field(default=False, alias="LANGCHAIN_TRACING_V2")
     langchain_api_key: str | None = Field(default=None, alias="LANGCHAIN_API_KEY")
-    langchain_project: str = Field(default="dispatch-ai", alias="LANGCHAIN_PROJECT")
+    langchain_project: str = Field(default="otto", alias="LANGCHAIN_PROJECT")
 
 
 settings = _Settings()

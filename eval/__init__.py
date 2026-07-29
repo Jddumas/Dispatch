@@ -1,1 +1,1 @@
-"""Evaluation suite for Dispatch AI."""
+"""Evaluation suite for Otto."""

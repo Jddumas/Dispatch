@@ -1,4 +1,4 @@
-"""PostgreSQL database utilities for the Dispatch AI project."""
+"""PostgreSQL database utilities for the Otto project."""
 
 import os
 from typing import Any

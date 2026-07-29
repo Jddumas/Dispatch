@@ -1,4 +1,4 @@
-"""Shared state and helpers for Dispatch AI agents."""
+"""Shared state and helpers for Otto agents."""
 
 from __future__ import annotations
 

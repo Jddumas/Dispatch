@@ -1,4 +1,4 @@
-# Dispatch AI - Requirements
+# Otto - Requirements
 
 # Core Python packages
 pydantic>=2.0.0

@@ -1,4 +1,4 @@
-"""Evaluation suite for the Dispatch AI multi-agent support system."""
+"""Evaluation suite for the Otto multi-agent support system."""
 
 from __future__ import annotations
 
@@ -166,7 +166,7 @@ def _compute_summary(results: list[dict]) -> dict:
 
 
 def _print_summary(summary: dict) -> None:
-    print("\n=== Dispatch AI Evaluation Report ===")
+    print("\n=== Otto Evaluation Report ===")
     print(f"Model: {summary['model']}")
     print(f"Total test cases: {summary['total']}")
     print(f"Intent accuracy: {summary['intent_accuracy_percent']}%")

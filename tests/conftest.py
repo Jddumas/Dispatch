@@ -1,4 +1,4 @@
-"""Shared pytest configuration for the Dispatch AI test suite."""
+"""Shared pytest configuration for the Otto test suite."""
 
 from __future__ import annotations
 
