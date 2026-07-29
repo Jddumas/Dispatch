@@ -65,3 +65,4 @@ databases:
     databaseName: support_agent
     user: agent
     plan: free
+    region: ohio
