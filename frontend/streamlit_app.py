@@ -104,15 +104,11 @@ with st.sidebar:
             "What is the weather in Paris?",
             "Create a support ticket for customer 52 about order 103",
         ],
-        "Hybrid (cross-domain)": [
+        "Hybrid (RAG + SQL)": [
             "Is Sarah Chen's last order still eligible for a return?",
             "Does Marcus Johnson's last order qualify for a warranty claim?",
             "What loyalty tier is Sarah Chen and what discount does she get?",
             "Is Emily Torres's order eligible for a return?",
-        ],
-        "General": [
-            "What can you do?",
-            "Hello!",
         ],
     }
     _CATEGORY_DESCRIPTIONS = {
@@ -120,8 +116,7 @@ with st.sidebar:
         "Knowledge Base": "Ask questions about company policies: returns, warranties, loyalty rewards, and shipping rules.",
         "SQL / Account": "Run aggregate queries across all accounts — revenue, refund rates, top customers, open tickets.",
         "Tools & Actions": "Trigger live tools — look up orders, create or update support tickets, check weather.",
-        "Hybrid (cross-domain)": "Questions that need both customer data and policy knowledge, like return or warranty eligibility.",
-        "General": "Greetings and general questions about what the assistant can do.",
+        "Hybrid (RAG + SQL)": "Questions that need both customer data and policy knowledge, like return or warranty eligibility.",
     }
     for category, questions in example_questions.items():
         with st.expander(category, expanded=False):

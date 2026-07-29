@@ -2,72 +2,57 @@
 
 ## Project Context
 
-- This is the **Dispatch AI** multi-agent support system.
-- Stack: Python 3.13, LangGraph, FastAPI, PostgreSQL, ChromaDB, Docker, Streamlit, Ollama (local LLM).
-- Active Python environment: `venv`. Because each shell session is fresh, use `.\venv\Scripts\python.exe` and `.\venv\Scripts\python.exe -m pip` directly instead of relying on activation persisting.
-- Ollama is installed locally and the project uses `llama3.1` (generation) and `nomic-embed-text` (embeddings).
-- PostgreSQL 15 can run from the local `pgsql/` binary tree or from the Docker Compose stack.
-- Conversation state is persisted in `data/checkpoints.sqlite` using LangGraph's `SqliteSaver`. Use a consistent `thread_id` / `session_id` for multi-turn conversations.
+- **Dispatch AI** is a multi-agent customer support assistant.
+- Stack: Python 3.13, LangGraph, FastAPI, PostgreSQL, ChromaDB, Streamlit, Groq API.
+- LLM: `llama-3.3-70b-versatile` (main), `llama-3.1-8b-instant` (classifier) via Groq.
+- Embeddings: `nomic-embed-text` via Ollama (local).
+- Virtual environment: `venv/`. Activate with `source venv/bin/activate`.
+- Backend runs on port **8002** (port 8000 is taken by another project).
+- Conversation state persists in `data/checkpoints.sqlite` via LangGraph `SqliteSaver`.
 
 ## Common Commands
 
 ### Backend
-```powershell
-.\venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+```bash
+source venv/bin/activate
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8002
 ```
 
 ### Frontend
-```powershell
-$env:API_URL='http://127.0.0.1:8000'
-.\venv\Scripts\python.exe -m streamlit run frontend/streamlit_app.py
+```bash
+API_URL=http://localhost:8002 venv/bin/python -m streamlit run frontend/streamlit_app.py --server.port 8501 --server.headless true
 ```
 
 ### Docker (full stack)
-```powershell
+```bash
 docker compose up --build -d
 ```
 
+### Tests and Linting
+```bash
+source venv/bin/activate
+python -m ruff check app frontend eval tests
+python -m pytest tests -v
+```
+
 ### Evaluation
-```powershell
-.\venv\Scripts\python.exe -m eval.run_eval
+```bash
+source venv/bin/activate
+python -m eval.run_eval
 ```
 
-### Linting and Tests
-```powershell
-.\venv\Scripts\python.exe -m ruff check app frontend eval tests
-.\venv\Scripts\python.exe -m pytest tests -v
-```
+## Key Files
 
-### LangSmith Tracing
-Set in `.env`:
-```text
-LANGCHAIN_TRACING_V2=true
-LANGCHAIN_API_KEY=lsv2_...
-LANGCHAIN_PROJECT=dispatch-ai
-```
-Then run `experiments/12_langsmith_trace.py` to verify traces appear.
-
-## Key Project Files
-
-- `app/main.py` — FastAPI backend with `/health`, `/chat`, `/chat/stream`, `/sessions/{id}/history`, and `/metrics`.
-- `app/agents/router.py` — LangGraph router, `run_agent()`, and `get_thread_history()`.
-- `app/agents/sql_agent.py` — Safe SQL generation and execution.
-- `app/agents/rag_agent.py` — RAG answer synthesis with source extraction.
-- `app/agents/action_agent.py` — Tool-calling agent.
-- `app/tools/retriever.py` — ChromaDB + Ollama embeddings for RAG.
-- `frontend/streamlit_app.py` — Chat UI.
-- `eval/run_eval.py` and `eval/test_cases.json` — Evaluation suite.
-- `tests/` — pytest unit tests.
-- `docs/architecture.md` — System architecture.
-- `docs/blog_post.md` — Build journal / blog draft.
-- `README.md` — Public-facing project overview and quick start.
-
-## Reporting Requirement
-
-After completing each task or group of related tasks, produce a **detailed report** that includes:
-1. **What was completed** — specific files changed, commands run, and outcomes.
-2. **Verification** — how you confirmed the change works (e.g., script output, lint, test, `git status`).
-3. **Current state** — where the project stands against `tasks.md`.
-4. **Next steps** — the immediate next 1–3 tasks to do, pulled from `tasks.md`.
-
-Also keep `tasks.md` and the session todo list in sync as work progresses.
+- `app/main.py` — FastAPI backend: `/health`, `/chat`, `/chat/stream`, `/sessions/{id}/history`
+- `app/agents/router.py` — LangGraph graph, intent classifier, `run_agent()`
+- `app/agents/sql_agent.py` — SQL generation, execution, Customer 360 profile builder
+- `app/agents/rag_agent.py` — RAG answer synthesis via ChromaDB
+- `app/agents/action_agent.py` — Tool-calling agent (weather, tickets, orders)
+- `app/agents/hybrid_agent.py` — SQL + RAG fan-out with LLM synthesis
+- `app/tools/api_client.py` — Action tools (lookup_order, close_ticket, etc.)
+- `app/tools/retriever.py` — ChromaDB retrieval with Ollama embeddings
+- `frontend/streamlit_app.py` — Streamlit chat UI with Customer 360 card rendering
+- `data/documents/` — 25 markdown files that make up the RAG knowledge base
+- `eval/` — Evaluation suite (`run_eval.py`, `test_cases.json`)
+- `tests/` — pytest unit tests
+- `docs/` — Architecture, blog post, interview notes, teaching materials
