@@ -4,7 +4,7 @@ A production-ready multi-agent AI support system built with **LangGraph**, **Fas
 
 ## Live Demo
 
-- Chat UI: *(coming soon)*
+- Chat UI: https://otto-support.streamlit.app
 - API Base: https://otto-api-qsk6.onrender.com
 - API Docs: https://otto-api-qsk6.onrender.com/docs
 
