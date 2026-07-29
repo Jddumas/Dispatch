@@ -33,14 +33,6 @@ st.set_page_config(
 
 st.title("🤖 Dispatch AI — Support Agent")
 
-st.markdown(
-    """
-    <style>
-    div[data-testid="stChatMessage"] .stFeedback { margin-top: 4px; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
 
 with st.sidebar:
     st.header("About")
@@ -371,26 +363,6 @@ def _escape_text(text: str) -> str:
     return text.replace("$", "\\$").replace("_", "\\_")
 
 
-def _submit_feedback(msg: dict, rating: str, idx: int, reason: str = "") -> None:
-    try:
-        requests.post(
-            f"{API_URL}/feedback",
-            json={
-                "session_id": st.session_state.session_id,
-                "question": msg.get("question", ""),
-                "reply": msg["content"],
-                "intent": msg.get("intent", ""),
-                "rating": rating,
-                "reason": reason,
-            },
-            timeout=5,
-        )
-    except requests.exceptions.RequestException:
-        pass
-    st.session_state.messages[idx]["rating"] = rating
-    st.session_state.pop(f"show_reason_{idx}", None)
-    st.rerun()
-
 
 def _display_message(msg: dict, idx: int) -> None:
     with st.chat_message(msg["role"]):
@@ -398,30 +370,6 @@ def _display_message(msg: dict, idx: int) -> None:
             _render_customer_card(msg["data"][0])
         else:
             st.write(_escape_text(msg["content"]))
-        if msg["role"] == "assistant":
-            if msg.get("rating"):
-                st.caption(f"{'👍' if msg['rating'] == 'up' else '👎'} feedback recorded")
-            else:
-                val = st.feedback("thumbs", key=f"feedback_{idx}")
-                if val is not None:
-                    rating = "up" if val == 1 else "down"
-                    try:
-                        requests.post(
-                            f"{API_URL}/feedback",
-                            json={
-                                "session_id": st.session_state.session_id,
-                                "question": msg.get("question", ""),
-                                "reply": msg["content"],
-                                "intent": msg.get("intent", ""),
-                                "rating": rating,
-                                "reason": "",
-                            },
-                            timeout=5,
-                        )
-                    except requests.exceptions.RequestException:
-                        pass
-                    st.session_state.messages[idx]["rating"] = rating
-                    st.rerun()
         if msg.get("intent") and st.session_state.get("dev_mode"):
             with st.expander("Details"):
                 st.write(f"Intent: `{msg['intent']}`")
