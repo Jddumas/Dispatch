@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import re
+from datetime import date, datetime
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -22,8 +24,17 @@ def hybrid_node(state: AgentState) -> dict[str, Any]:
     messages = state["messages"]
 
     # Step 1: get structured DB data
+    # For eligibility questions, hint the SQL agent to include dates so the LLM can evaluate policy windows.
+    _ELIGIBILITY_KEYWORDS = ("eligible", "qualify", "return", "warranty", "refund")
+    sql_question = question
+    if any(kw in question.lower() for kw in _ELIGIBILITY_KEYWORDS):
+        sql_question = (
+            question
+            + " Select the order's product_name, created_at, status, and total."
+            + " Use LEFT JOIN shipping sh ON sh.order_id = o.id to also get sh.delivered_at."
+        )
     try:
-        sql_result = run_sql_agent(question, messages=messages)
+        sql_result = run_sql_agent(sql_question, messages=messages)
         db_answer = sql_result.get("answer", "No database result.")
         sql_query = sql_result.get("sql_query", "")
         data = sql_result.get("data", [])
@@ -45,16 +56,32 @@ def hybrid_node(state: AgentState) -> dict[str, Any]:
         sources = []
 
     # Step 3: synthesize
+    today = date.today()
+    today_str = today.isoformat()
+
+    # Pre-compute elapsed days so the LLM doesn't need to do date math.
+    elapsed_note = ""
+    date_match = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", db_answer)
+    if date_match:
+        try:
+            ref_date = datetime.strptime(date_match.group(1), "%Y-%m-%d").date()
+            elapsed_days = (today - ref_date).days
+            elapsed_note = f"\n\nPre-computed: {elapsed_days} days have elapsed since {ref_date} (today is {today_str})."
+        except ValueError:
+            elapsed_note = ""
+
     try:
         synthesis_prompt = (
-            f"Database result:\n{db_answer}\n\n"
+            f"Today's date: {today_str}\n\n"
+            f"Database result:\n{db_answer}{elapsed_note}\n\n"
             f"Policy/product context:\n{rag_context or 'No relevant policy context found.'}\n\n"
             f"Question: {question}\n\n"
-            "Answer in 2-4 sentences. Start with a direct Yes/No or clear conclusion. "
-            "Then cite the specific policy clause or date/amount from the data that supports it "
-            "(e.g. 'Per our return policy, items must be returned within 30 days in unused condition' "
-            "or 'The order was placed on 2026-06-01, which is 27 days ago'). "
-            "If either source is empty or not relevant, say so explicitly. Do not use markdown."
+            "Using the pre-computed elapsed days above and the policy window from the policy context, "
+            "answer whether the customer is eligible. "
+            "If elapsed days < policy window (e.g. < 30 for returns, < 365 for warranty), say 'Yes, eligible.' "
+            "If elapsed days >= policy window, say 'No, not eligible.' "
+            "If the date is missing (N/A), say 'Cannot determine eligibility — delivery date not available.' "
+            "After your opening phrase, explain with the date, elapsed days, and policy rule. Do not use markdown."
         )
         llm = get_llm(model=LLM_MODEL, temperature=0.0, max_tokens=400)
         response = llm.invoke(
