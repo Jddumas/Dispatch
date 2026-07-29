@@ -36,28 +36,7 @@ st.title("🤖 Dispatch AI — Support Agent")
 st.markdown(
     """
     <style>
-    div[data-testid="stChatMessage"] div[data-testid="stButton"] button,
-    div[data-testid="stChatMessage"] div[data-testid="stButton"] button:focus,
-    div[data-testid="stChatMessage"] div[data-testid="stButton"] button:active {
-        background: transparent !important;
-        background-color: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        color: rgba(250, 250, 250, 0.22) !important;
-        font-size: 0.7rem !important;
-        padding: 0 1px !important;
-        min-height: 0 !important;
-        height: auto !important;
-        line-height: 1 !important;
-        width: auto !important;
-    }
-    div[data-testid="stChatMessage"] div[data-testid="stButton"] button:hover {
-        background: transparent !important;
-        background-color: transparent !important;
-        color: rgba(250, 250, 250, 0.6) !important;
-        border: none !important;
-        box-shadow: none !important;
-    }
+    div[data-testid="stChatMessage"] .stFeedback { margin-top: 4px; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -419,36 +398,10 @@ def _display_message(msg: dict, idx: int) -> None:
             _render_customer_card(msg["data"][0])
         else:
             st.write(_escape_text(msg["content"]))
-        if msg["role"] == "assistant":
-            if msg.get("rating"):
-                st.markdown(
-                    f"<span style='font-size:0.65rem;opacity:0.25'>{'👍' if msg['rating'] == 'up' else '👎'}</span>",
-                    unsafe_allow_html=True,
-                )
-            elif st.session_state.get(f"show_reason_{idx}"):
-                reason = st.text_input(
-                    "What went wrong? (optional)",
-                    key=f"reason_{idx}",
-                    placeholder="e.g. wrong answer, missing info…",
-                )
-                col1, col2 = st.columns([1, 4])
-                with col1:
-                    if st.button("Submit", key=f"reason_submit_{idx}", type="primary"):
-                        _submit_feedback(msg, "down", idx, reason=reason)
-                with col2:
-                    if st.button("Skip", key=f"reason_skip_{idx}"):
-                        _submit_feedback(msg, "down", idx)
-            else:
-                wrap, _ = st.columns([1, 9])
-                with wrap:
-                    b1, b2 = st.columns(2, gap="small")
-                    with b1:
-                        if st.button("👍", key=f"up_{idx}", help="Helpful"):
-                            _submit_feedback(msg, "up", idx)
-                    with b2:
-                        if st.button("👎", key=f"down_{idx}", help="Not helpful"):
-                            st.session_state[f"show_reason_{idx}"] = True
-                            st.rerun()
+        if msg["role"] == "assistant" and not msg.get("rating"):
+            val = st.feedback("thumbs", key=f"feedback_{idx}")
+            if val is not None:
+                _submit_feedback(msg, "up" if val == 1 else "down", idx)
         if msg.get("intent") and st.session_state.get("dev_mode"):
             with st.expander("Details"):
                 st.write(f"Intent: `{msg['intent']}`")
