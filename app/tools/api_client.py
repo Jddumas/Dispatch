@@ -136,8 +136,9 @@ def get_customer_by_email(email: str) -> str:
 
 @tool
 def update_ticket_status(ticket_id: int | str, new_status: str) -> str:
-    """Update the status of a support ticket. Allowed statuses: open, in_progress, resolved, closed."""
+    """Update the status of a support ticket. Allowed statuses: open, in progress, resolved, closed."""
     ticket_id = int(ticket_id)
+    new_status = new_status.strip().lower().replace(" ", "_").replace("-", "_")
     if new_status not in _ALLOWED_TICKET_STATUSES:
         return (
             f"Invalid status '{new_status}'. Allowed values: "
