@@ -114,7 +114,7 @@ with st.sidebar:
         "Customer 360° Card": "Pull a complete profile for any customer — spend, orders, open tickets, refunds, and risk flags.",
         "Knowledge Base": "Ask questions about company policies: returns, warranties, loyalty rewards, and shipping rules.",
         "SQL / Account": "Run aggregate queries across all accounts — revenue, refund rates, top customers, open tickets.",
-        "Tools & Actions": "Full ticket lifecycle demo — find a customer, look up their order, open a ticket, update it, and close it with a resolution note.",
+        "Tools & Actions": "Trigger live tools — create, update, and close support tickets; look up customers; check real-time weather via OpenWeatherMap.",
         "Hybrid (RAG + SQL)": "Questions that need both customer data and policy knowledge, like return or warranty eligibility.",
     }
     for category, questions in example_questions.items():
