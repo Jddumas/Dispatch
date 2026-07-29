@@ -40,9 +40,8 @@ postgresql-binaries.zip
 *.sqlite3
 *.sqlite-shm
 *.sqlite-wal
+!data/chroma/chroma.sqlite3
 
-# ChromaDB vector store
-data/chroma/
 
 # Streamlit Cloud secrets
 .streamlit/secrets.toml
