@@ -398,10 +398,30 @@ def _display_message(msg: dict, idx: int) -> None:
             _render_customer_card(msg["data"][0])
         else:
             st.write(_escape_text(msg["content"]))
-        if msg["role"] == "assistant" and not msg.get("rating"):
-            val = st.feedback("thumbs", key=f"feedback_{idx}")
-            if val is not None:
-                _submit_feedback(msg, "up" if val == 1 else "down", idx)
+        if msg["role"] == "assistant":
+            if msg.get("rating"):
+                st.caption(f"{'👍' if msg['rating'] == 'up' else '👎'} feedback recorded")
+            else:
+                val = st.feedback("thumbs", key=f"feedback_{idx}")
+                if val is not None:
+                    rating = "up" if val == 1 else "down"
+                    try:
+                        requests.post(
+                            f"{API_URL}/feedback",
+                            json={
+                                "session_id": st.session_state.session_id,
+                                "question": msg.get("question", ""),
+                                "reply": msg["content"],
+                                "intent": msg.get("intent", ""),
+                                "rating": rating,
+                                "reason": "",
+                            },
+                            timeout=5,
+                        )
+                    except requests.exceptions.RequestException:
+                        pass
+                    st.session_state.messages[idx]["rating"] = rating
+                    st.rerun()
         if msg.get("intent") and st.session_state.get("dev_mode"):
             with st.expander("Details"):
                 st.write(f"Intent: `{msg['intent']}`")
