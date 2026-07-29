@@ -1,8 +1,6 @@
 # 🤖 Otto - Internal Support Assistant
 
-A production-ready multi-agent AI support system built with **LangGraph**, **FastAPI**, **PostgreSQL**, **ChromaDB**, and **Ollama**. It routes customer questions to specialized agents for knowledge-base Q&A, safe SQL queries, automated actions, and general conversation — with conversation memory, streaming responses, and observability built in.
-
-> **Note:** This project uses local LLMs via Ollama by default. It also supports Groq and OpenAI for faster cloud deployments, and `fastembed` for CPU embeddings when Ollama is not available.
+A production-ready multi-agent AI support system built with **LangGraph**, **FastAPI**, **PostgreSQL**, **ChromaDB**, and **Groq**. It validates and classifies each user message with a confidence score, routes it to a specialized agent, and asks a clarifying question when intent is ambiguous — with conversation memory, streaming responses, user feedback, and observability built in.
 
 ## Live Demo
 
@@ -12,44 +10,53 @@ A production-ready multi-agent AI support system built with **LangGraph**, **Fas
 
 ## Features
 
-- **Multi-agent routing** — an LLM classifier routes each question to the right specialist agent (`sql`, `rag`, `action`, or `general`).
+- **Confidence-scored routing** — the classifier returns an intent label and a confidence score; low-confidence requests are sent to a clarify node that asks the user a follow-up question before invoking a specialist.
+- **Input validation** — empty messages, oversized input, and blocked keywords are rejected before any LLM call.
+- **Multi-agent routing** — routes to `sql`, `rag`, `action`, `hybrid`, or `general` agents based on classified intent.
 - **RAG-powered knowledge base** — answers policy and product questions from a markdown document collection, with source attribution.
-- **Natural language to SQL** — generates safe, read-only PostgreSQL queries and returns concise natural-language summaries.
-- **Automated action execution** — uses tool calling to fetch weather, send notifications, and create support tickets.
+- **Natural language to SQL** — generates safe, read-only PostgreSQL queries and returns concise natural-language summaries with human-readable column labels.
+- **Hybrid agent** — handles questions that require both live database data and policy knowledge (e.g., eligibility checks, loyalty tier lookups).
+- **Automated action execution** — uses tool calling to fetch weather, send notifications, and create/update/close support tickets.
+- **User feedback loop** — 👍/👎 buttons on every assistant reply; thumbs-down opens a text reason box; ratings are stored in PostgreSQL.
 - **Conversation memory** — persists multi-turn state with `thread_id` using LangGraph's `SqliteSaver`.
+- **Session persistence** — session ID stored in the URL query string so conversations survive page reloads.
 - **Streaming responses** — Server-Sent Events endpoint for a typing effect in the UI.
-- **FastAPI backend** — `/health`, `/chat`, `/chat/stream`, `/sessions/{id}/history`, and `/metrics`.
+- **FastAPI backend** — `/health`, `/chat`, `/chat/stream`, `/sessions/{id}/history`, `/metrics`, and `/feedback`.
 - **Rate limiting, CORS, and request logging** — production middleware configured out of the box.
-- **Evaluation suite** — 20 test cases covering intent classification, SQL safety, RAG relevance, and action accuracy.
+- **Evaluation suite** — test cases covering intent classification, SQL safety, RAG relevance, and action accuracy.
 - **LangSmith tracing** — optional tracing by setting environment variables.
-- **Docker support** — `docker-compose.yml` spins up PostgreSQL, ChromaDB, Ollama, and the FastAPI app.
+- **Docker support** — `docker-compose.yml` spins up PostgreSQL, ChromaDB, and the FastAPI app.
 
 ## Architecture
 
-See the full architecture write-up in [`docs/architecture.md`](docs/architecture.md).
+See the full write-up in [`docs/architecture.md`](docs/architecture.md).
 
 ```mermaid
 graph TD
-    U[User / Streamlit Frontend] -->|HTTP POST /chat| F[FastAPI Backend]
+    U[User / Streamlit Frontend] -->|HTTP POST /chat or /chat/stream| F[FastAPI Backend]
     F -->|thread_id + SqliteSaver| S[(SQLite Checkpoints)]
-    F -->|invoke| R[LangGraph Router]
-    R -->|intent: sql| SQL[SQL Agent]
-    R -->|intent: rag| RAG[RAG Agent]
-    R -->|intent: action| ACT[Action Agent]
-    R -->|intent: general| GEN[General Node]
+    F -->|invoke| V[Validate Node]
+    V -->|invalid input| FB[Fallback Node]
+    V -->|valid| C[Classify Node]
+    C -->|confidence ≥ 0.7| R{Route}
+    C -->|confidence < 0.7| CL[Clarify Node]
+    R -->|sql| SQL[SQL Agent]
+    R -->|rag| RAG[RAG Agent]
+    R -->|action| ACT[Action Agent]
+    R -->|hybrid| HYB[Hybrid Agent]
+    R -->|general| GEN[General Node]
     SQL -->|safe SELECT| PG[(PostgreSQL)]
-    RAG -->|retrieve| CH[(ChromaDB + Ollama Embeddings)]
+    RAG -->|retrieve| CH[(ChromaDB)]
+    HYB -->|safe SELECT + retrieve| PG & CH
     ACT -->|tool calls| API[Mock APIs]
-    GEN -->|LLM| OLL[Ollama]
-    SQL -->|LLM| OLL
-    RAG -->|LLM| OLL
-    ACT -->|LLM| OLL
+    SQL & RAG & ACT & HYB & GEN & CL & FB --> FMT[Format Node]
+    F -->|POST /feedback| PG
     F -->|traces| LS[LangSmith]
 ```
 
 ## Tech Stack
 
-Python 3.13 | LangGraph | FastAPI | PostgreSQL | ChromaDB | Ollama | Streamlit | Docker | LangSmith
+Python 3.13 | LangGraph | FastAPI | PostgreSQL | ChromaDB | Groq | Streamlit | Docker | LangSmith
 
 ## Evaluation Results
 
@@ -59,8 +66,6 @@ Run the suite yourself with:
 python -m eval.run_eval
 ```
 
-Latest run (`llama3.1` on a local CPU):
-
 | Metric                       | Score    |
 |------------------------------|----------|
 | Intent Accuracy              | 100.0%   |
@@ -69,15 +74,14 @@ Latest run (`llama3.1` on a local CPU):
 | RAG Source Grounding         | 100.0%   |
 | Action Tool Accuracy         | 100.0%   |
 | Error Rate                   | 0.0%     |
-| Average Latency              | ~10.6s   |
 
 ## Quick Start
 
 ### Prerequisites
 
 - Python 3.13
-- [Ollama](https://ollama.com) installed and running
 - [PostgreSQL](https://www.postgresql.org) running locally, or Docker
+- A [Groq API key](https://console.groq.com) (free tier available)
 
 ### Local Setup
 
@@ -85,7 +89,7 @@ Latest run (`llama3.1` on a local CPU):
 
 ```bash
 git clone <repo-url>
-cd dispatch
+cd otto
 python -m venv venv
 # Windows:
 .\venv\Scripts\activate
@@ -99,17 +103,20 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-3. Copy environment variables and start Postgres/Ollama:
+3. Copy and configure environment variables:
 
 ```bash
 # Linux/Mac:
 cp .env.example .env
 # Windows PowerShell:
 Copy-Item .env.example .env
+```
 
-# Make sure Ollama has the required models:
-ollama pull llama3.1
-ollama pull nomic-embed-text
+Edit `.env` and set at minimum:
+
+```bash
+GROQ_API_KEY=gsk_...
+DATABASE_URL=postgresql://user:password@localhost:5432/otto
 ```
 
 4. Start the FastAPI backend:
@@ -125,19 +132,17 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 In a new terminal:
 
 ```bash
+# Linux/Mac
+API_URL=http://127.0.0.1:8000 python -m streamlit run frontend/streamlit_app.py
+
 # Windows
 $env:API_URL="http://127.0.0.1:8000"
 python -m streamlit run frontend/streamlit_app.py
-
-# Linux/Mac
-API_URL=http://127.0.0.1:8000 python -m streamlit run frontend/streamlit_app.py
 ```
 
 Then open `http://localhost:8501`.
 
 ### Docker
-
-> First startup pulls the Ollama models and may take several minutes.
 
 ```bash
 docker compose up --build -d
@@ -160,82 +165,72 @@ pytest tests -v
 
 ## Deployment
 
-The repository includes a `render.yaml` blueprint for [Render](https://render.com). It uses **Groq** for fast, hosted LLM inference and **FastEmbed** for CPU embeddings so the app runs on Render's free/CPU tier.
+The repository includes a `render.yaml` blueprint for [Render](https://render.com). It uses **Groq** for fast hosted LLM inference and **FastEmbed** for CPU embeddings so the app runs on Render's free/CPU tier.
 
 ### Render (backend)
 
-1. Make sure the repo is pushed to GitHub.
-2. Create a Render account and install the [Render CLI](https://render.com/docs/cli).
-3. Set the Groq API key in your shell:
-
-```bash
-export GROQ_API_KEY=gsk_...
-```
-
-4. Deploy:
-
-```bash
-render blueprint apply render.yaml
-# or click the Render dashboard "New +" -> "Blueprint" and select render.yaml
-```
-
-5. After the service is live, copy the service URL (e.g. `https://dispatch-api-xxx.onrender.com`) and add it to the Streamlit Cloud secrets as `API_URL`.
+1. Push the repo to GitHub.
+2. Set the Groq API key in your shell: `export GROQ_API_KEY=gsk_...`
+3. Deploy via the Render dashboard: New → Blueprint → select `render.yaml`.
+4. After the service is live, copy the service URL and add it to Streamlit Cloud secrets as `API_URL`.
 
 ### Streamlit Community Cloud (frontend)
 
 1. Push the repo to GitHub.
 2. Go to [Streamlit Community Cloud](https://streamlit.io/cloud) and create a new app.
 3. Select `frontend/streamlit_app.py` as the main file.
-4. In the app settings/secrets, add:
+4. In app settings/secrets, add:
 
 ```toml
-API_URL = "https://dispatch-api-xxx.onrender.com"
+API_URL = "https://your-render-service.onrender.com"
 ```
 
-5. Deploy and update the **Live Demo** URLs above.
-
-### Switching LLM providers locally
+### Switching LLM providers
 
 Set the provider in `.env`:
 
 ```bash
-# Ollama (default)
-LLM_PROVIDER=ollama
-LLM_MODEL=llama3.1
-
-# Groq
+# Groq (default)
 LLM_PROVIDER=groq
 GROQ_API_KEY=gsk_...
-LLM_MODEL=llama-3.1-8b-instant
+LLM_MODEL=llama-3.3-70b-versatile
 CLASSIFY_MODEL=llama-3.1-8b-instant
 
 # OpenAI
 LLM_PROVIDER=openai
 OPENAI_API_KEY=sk-...
 LLM_MODEL=gpt-4o-mini
+
+# Ollama (local)
+LLM_PROVIDER=ollama
+LLM_MODEL=llama3.1
 ```
 
 ## Example Questions to Try
 
-The Streamlit sidebar includes a categorized bank of one-click example prompts. You can also type these directly into the chat:
+The Streamlit sidebar includes a categorized bank of one-click example prompts.
+
+- **Customer 360:**
+  - "Tell me about Sarah Chen"
+  - "Give me the customer card for Emily Torres"
+  - "What loyalty tier is Marcus Johnson and what discount does he get?"
+  - "Is customer 5 eligible for a warranty claim on their last order?"
+
+- **SQL / Analytics:**
+  - "How many orders are there?"
+  - "What is total revenue by product category?"
+  - "Which customers have an open ticket and a returned order?"
+  - "Who are the top 5 customers by spend in the last 90 days?"
 
 - **RAG / Policy:**
   - "What is the return policy?"
   - "What payment methods do you accept?"
   - "How does the loyalty program work?"
-  - "What does the account security documentation say about two-factor authentication?"
-
-- **SQL / Account:**
-  - "How many orders are there?"
-  - "What is total revenue by product category?"
-  - "Which customers have an open ticket and a returned order?"
-  - "Who are the top 5 customers by spend in the last 90 days?"
-  - "What is the average order value?"
 
 - **Action:**
   - "What is the weather in Paris?"
   - "Create a support ticket for customer 2 about order 3"
-  - "Send a notification to team@example.com about order 5"
+  - "Close ticket 12 with note: replacement shipped"
 
 - **General:**
   - "What can you do?"
@@ -244,7 +239,7 @@ The Streamlit sidebar includes a categorized bank of one-click example prompts. 
 ## Project Structure
 
 ```
-dispatch/
+otto/
 ├── README.md
 ├── .env.example
 ├── .gitignore
@@ -255,15 +250,16 @@ dispatch/
 ├── .dockerignore
 ├── app/
 │   ├── main.py              # FastAPI app + endpoints
-│   ├── config.py            # Centralized pydantic-settings config
+│   ├── config.py            # Centralized config (pydantic-settings)
 │   ├── agents/
-│   │   ├── router.py        # LangGraph router + graph compile
+│   │   ├── router.py        # LangGraph graph: validate → classify → route → format
 │   │   ├── rag_agent.py     # RAG node
 │   │   ├── sql_agent.py     # SQL generation + safety
 │   │   ├── action_agent.py  # Tool-calling agent
+│   │   ├── hybrid_agent.py  # SQL + RAG combined agent
 │   │   └── state.py         # AgentState TypedDict
 │   └── tools/
-│       ├── retriever.py     # ChromaDB + Ollama RAG
+│       ├── retriever.py     # ChromaDB RAG retrieval
 │       ├── database.py      # PostgreSQL helpers
 │       └── api_client.py    # Mock action tools
 ├── data/
@@ -281,10 +277,6 @@ dispatch/
 │   └── architecture.md      # System design docs
 └── AGENTS.md                # Agent rules and dev notes
 ```
-
-## Blog Post
-
-Read the build journal: *[blog post URL to be added]*
 
 ## License
 
