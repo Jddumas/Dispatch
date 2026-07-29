@@ -12,6 +12,7 @@ from typing_extensions import NotRequired, TypedDict
 class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
     intent: str
+    confidence: NotRequired[float]
     result: str
     sources: list[str]
     sql_query: str

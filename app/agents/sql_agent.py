@@ -54,6 +54,9 @@ Use aggregate functions like COUNT, SUM, AVG, MIN, MAX and GROUP BY when the que
 Use DATE_TRUNC('month', created_at) to group by month.
 Filter by date with created_at >= NOW() - INTERVAL '30 days' for recent time windows.
 Use ILIKE with customer names when matching by name is needed.
+Always alias ambiguous ID columns with descriptive names (e.g., t.id AS ticket_id, c.id AS customer_id, o.id AS order_id).
+When the question involves orders, always include o.id AS order_id in the SELECT. When it involves tickets, always include t.id AS ticket_id.
+When asked for a "refund rate", calculate it as: ROUND(100.0 * COUNT(DISTINCT r.order_id) / COUNT(DISTINCT o.id), 1) AS refund_rate_pct, grouping by the relevant dimension. Join orders with refunds using LEFT JOIN refunds r ON r.order_id = o.id WHERE r.status = 'completed'.
 Return ONLY the SQL query, nothing else.
 Only use SELECT or WITH statements.
 Do not use a trailing semicolon.
@@ -119,12 +122,17 @@ def _generate_sql(question: str, history: str = "") -> str:
     return _extract_sql(response.content)
 
 
-def _format_value(value: Any) -> str:
+def _format_value(value: Any, key: str = "") -> str:
     if value is None:
         return "N/A"
     if isinstance(value, Decimal):
         value = float(value)
     if isinstance(value, float):
+        k = key.lower()
+        if any(k.endswith(s) for s in ("_pct", "_rate", "_rate_pct", "_percent")):
+            return f"{value:.1f}%"
+        if any(w in k for w in ("count", "qty", "quantity", "days", "num_")):
+            return f"{value:,.0f}"
         return f"${value:,.2f}"
     return str(value)
 
@@ -152,6 +160,14 @@ def _clean_question(question: str) -> str:
     # Drop "have been" / "has been" anywhere in the phrase for cleaner statements.
     q = q.replace(" have been ", " ").replace(" has been ", " ")
     return q
+
+
+_LABEL_ALIASES = {
+    "ticket_id": "ticket #",
+    "customer_id": "customer #",
+    "order_id": "order #",
+    "product_id": "product #",
+}
 
 
 def _format_sql_answer(question: str, rows: list[dict[str, Any]]) -> str:
@@ -185,49 +201,61 @@ def _format_sql_answer(question: str, rows: list[dict[str, Any]]) -> str:
                 return str(row["id"])
             return str(row.get(keys[0], ""))
 
+        val_key = keys[-1]
         if len(rows) == 1:
             label = _row_label(rows[0])
-            value = rows[0].get(keys[-1], "")
+            value = rows[0].get(val_key, "")
             phrase = cleaned.replace(" has the ", " with the ")
             if len(keys) == 1:
                 return f"The {phrase} is {label}."
-            return f"The {phrase} is {label} ({_format_value(value)})."
+            return f"The {phrase} is {label} ({_format_value(value, val_key)})."
         parts = []
         for row in rows:
             label = _row_label(row)
-            value = row.get(keys[-1], "")
-            parts.append(f"- **{label}** ({_format_value(value)})")
+            value = row.get(val_key, "")
+            parts.append(f"- **{label}** ({_format_value(value, val_key)})")
         return f"Here are the {cleaned}:\n" + "\n".join(parts)
 
     # Grouped / per / by queries
     if " by " in q or " per " in q or q.startswith(("what is total", "total")):
         parts = []
+        value_key = keys[-1]
         for row in rows:
             label = row.get(keys[0], "")
-            value = row.get(keys[-1], "")
-            parts.append(f"{label}: {_format_value(value)}")
+            value = row.get(value_key, "")
+            parts.append(f"{label}: {_format_value(value, value_key)}")
         return f"The {cleaned}: {'; '.join(parts)}."
 
     # Single record lookup
     if len(rows) == 1:
-        pairs = [f"{k} = {_format_value(v)}" for k, v in rows[0].items()]
+        pairs = [f"{k} = {_format_value(v, k)}" for k, v in rows[0].items()]
         return f"The result is {', '.join(pairs)}."
 
     # General list
-    preview = rows[:5]
+    def _label(k: str) -> str:
+        return _LABEL_ALIASES.get(k, k)
+
+    _MAX_DISPLAY = 20
+    preview = rows[:_MAX_DISPLAY]
     parts = []
     for row in preview:
         if "name" in row:
-            name = _format_value(row["name"])
+            name = _format_value(row["name"], "name")
             other_pairs = [
-                f"{k}: {_format_value(v)}" for k, v in row.items() if k != "name"
+                f"{_label(k)}: {_format_value(v, k)}" for k, v in row.items() if k != "name"
             ]
             line = f"- **{name}**" + (f" ({', '.join(other_pairs)})" if other_pairs else "")
         else:
-            pairs = [f"{k}: {_format_value(v)}" for k, v in row.items()]
+            pairs = [f"{_label(k)}: {_format_value(v, k)}" for k, v in row.items()]
             line = f"- {', '.join(pairs)}"
         parts.append(line)
-    return f"Found {len(rows)} records for '{cleaned}':\n" + "\n".join(parts)
+    total = len(rows)
+    header = (
+        f"Found {total} records for '{cleaned}' (showing first {_MAX_DISPLAY}):"
+        if total > _MAX_DISPLAY
+        else f"Found {total} records for '{cleaned}':"
+    )
+    return header + "\n" + "\n".join(parts)
 
 
 def _format_answer(question: str, query: str, rows: list[dict[str, Any]]) -> str:
@@ -358,7 +386,7 @@ def _build_customer_profile(customer_id: int) -> dict[str, Any]:
     )[0]
 
     open_ticket_rows = database.execute_query_safe(
-        "SELECT subject, created_at FROM support_tickets "
+        "SELECT id, subject, created_at FROM support_tickets "
         "WHERE customer_id = %s AND status = 'open' ORDER BY created_at DESC LIMIT 5",
         (customer_id,),
     )

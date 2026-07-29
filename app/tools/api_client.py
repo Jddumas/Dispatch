@@ -168,7 +168,7 @@ def update_ticket_status(ticket_id: int | str, new_status: str) -> str:
 
 
 @tool
-def close_ticket(ticket_id: int | str, resolution_note: str) -> str:
+def close_ticket(ticket_id: int | str, resolution_note: str = "Closed by agent.") -> str:
     """Close a support ticket and record a resolution note on the customer's account."""
     ticket_id = int(ticket_id)
     rowcount = database.execute_query(

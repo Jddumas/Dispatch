@@ -1,8 +1,8 @@
-# Dispatch AI — Agent Rules
+# Otto — Agent Rules
 
 ## Project Context
 
-- **Dispatch AI** is a multi-agent customer support assistant.
+- **Otto** is a multi-agent internal support assistant.
 - Stack: Python 3.13, LangGraph, FastAPI, PostgreSQL, ChromaDB, Streamlit, Groq API.
 - LLM: `llama-3.3-70b-versatile` (main), `llama-3.1-8b-instant` (classifier) via Groq.
 - Embeddings: `nomic-embed-text` via Ollama (local).

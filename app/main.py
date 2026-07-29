@@ -1,4 +1,4 @@
-"""FastAPI backend for the Dispatch AI support agent."""
+"""FastAPI backend for Otto, the internal support assistant."""
 
 from __future__ import annotations
 
@@ -65,7 +65,7 @@ async def lifespan(app: FastAPI):
 
 limiter = Limiter(key_func=get_remote_address)
 
-app = FastAPI(title="Dispatch AI — Support Agent API", lifespan=lifespan)
+app = FastAPI(title="Otto - Internal Support Assistant", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -116,6 +116,7 @@ class FeedbackRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     intent: str
+    confidence: float = 1.0
     sources: list[str] = []
     sql_query: str = ""
     data: list[dict[str, Any]] | None = None
@@ -132,6 +133,7 @@ def _cached_agent_run(message: str, session_id: str) -> dict[str, Any]:
     return {
         "reply": state["messages"][-1].content,
         "intent": state.get("intent", "general"),
+        "confidence": state.get("confidence", 1.0),
         "sources": state.get("sources", []),
         "sql_query": state.get("sql_query", ""),
         "data": state.get("data") or [],
@@ -232,6 +234,7 @@ async def chat(request: Request, payload: ChatRequest) -> ChatResponse:
     return ChatResponse(
         reply=result["reply"],
         intent=result["intent"],
+        confidence=result.get("confidence", 1.0),
         sources=result["sources"],
         sql_query=result.get("sql_query", ""),
         data=result.get("data") or [],
@@ -250,19 +253,15 @@ def _sse(event: str, data: str) -> bytes:
 async def _stream_reply(
     reply: str,
     intent: str,
-    sources: list[str],
+    confidence: float = 1.0,
+    sources: list[str] | None = None,
     sql_query: str = "",
     data: list[dict[str, Any]] | None = None,
 ) -> AsyncGenerator[bytes, None]:
-    """Stream the final answer as Server-Sent Events.
-
-    Note: the underlying local-LLM graph is synchronous, so this streams the
-    already-generated reply word-by-word to improve perceived responsiveness.
-    True token-by-token streaming would require async graph nodes and an
-    LLM that supports streaming through LangChain.
-    """
+    """Stream the final answer as Server-Sent Events."""
     yield _sse("intent", intent)
-    for source in sources:
+    yield _sse("confidence", str(round(confidence, 3)))
+    for source in (sources or []):
         yield _sse("source", source)
     if sql_query:
         yield _sse("sql_query", sql_query)
@@ -299,7 +298,8 @@ async def chat_stream(request: Request, payload: ChatRequest) -> StreamingRespon
         _stream_reply(
             result["reply"],
             result["intent"],
-            result["sources"],
+            confidence=result.get("confidence", 1.0),
+            sources=result["sources"],
             sql_query=result.get("sql_query", ""),
             data=result.get("data") or [],
         ),

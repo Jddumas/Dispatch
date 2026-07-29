@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 ALLOWED_INTENTS = {"sql", "rag", "action", "general", "hybrid"}
 BLOCKED_KEYWORDS = ["hack", "exploit", "bypass security", "sql injection", "inject sql"]
+CONFIDENCE_THRESHOLD = 0.7
 
 _GRAPH = None
 _CHECKPOINTER = None
@@ -82,8 +83,10 @@ def classify_intent(state: AgentState) -> dict:
         "- action: requests that require a tool such as weather, notification, or creating a ticket\n"
         "- hybrid: questions requiring BOTH database data AND policy/product knowledge (eligibility checks, compliance questions)\n"
         "- general: greetings, small talk, or anything else\n\n"
-        "Respond with exactly one lowercase word. Do not explain.\n"
-        "Allowed responses: sql, rag, action, hybrid, general\n\n"
+        "Respond with exactly two tokens: the intent label and a confidence score between 0.0 and 1.0.\n"
+        "Example: action 0.9\n"
+        "Use confidence below 0.7 when the request is ambiguous or could fit multiple categories.\n"
+        "Allowed intents: sql, rag, action, hybrid, general\n\n"
         "Examples:\n"
         "- 'How many orders did John place last month?' -> sql\n"
         "- 'Tell me about Sarah Chen' -> sql\n"
@@ -101,6 +104,7 @@ def classify_intent(state: AgentState) -> dict:
         "- 'Create a support ticket for customer 5' -> action\n"
         "- 'Update ticket 12 status to resolved' -> action\n"
         "- 'Close ticket 81 with note: replacement shipped' -> action\n"
+        "- 'Close ticket 83' -> action\n"
         "- 'Send an email to support@example.com saying the order is late' -> action\n"
         "- 'What's the weather in Berlin?' -> action\n"
         "- 'Is my order from last week still eligible for a return?' -> hybrid\n"
@@ -119,21 +123,58 @@ def classify_intent(state: AgentState) -> dict:
         )
         response = llm.invoke([HumanMessage(content=prompt)])
         raw = response.content.strip().lower()
-        first_word = raw.split()[0] if raw.split() else ""
-        intent = "".join(c for c in first_word if c.isalpha())
+        parts = raw.split()
+        intent_raw = parts[0] if parts else ""
+        intent = "".join(c for c in intent_raw if c.isalpha())
         if intent not in ALLOWED_INTENTS:
             intent = "general"
-        logger.info("Classified intent: %s", intent)
+        try:
+            confidence = float(parts[1]) if len(parts) > 1 else 1.0
+            confidence = max(0.0, min(1.0, confidence))
+        except (ValueError, IndexError):
+            confidence = 1.0
+        logger.info("Classified intent: %s (confidence: %.2f)", intent, confidence)
     except Exception:
         logger.exception("Intent classification failed")
         intent = "general"
+        confidence = 1.0
 
-    return {"intent": intent}
+    return {"intent": intent, "confidence": confidence}
 
 
 def route(state: AgentState) -> str:
-    """Return the name of the next node based on the classified intent."""
+    """Route to clarify if confidence is low, otherwise dispatch to the specialist."""
+    if state.get("confidence", 1.0) < CONFIDENCE_THRESHOLD:
+        logger.info("Low confidence (%.2f) — routing to clarify", state["confidence"])
+        return "clarify"
     return state.get("intent", "general")
+
+
+def clarify_node(state: AgentState) -> dict:
+    """Ask the user a short clarifying question when classifier confidence is low."""
+    user_text = last_human_message(state)
+    intent_guess = state.get("intent", "general")
+    try:
+        llm = get_llm(model=LLM_MODEL, temperature=0.2, max_tokens=120)
+        response = llm.invoke(
+            [
+                SystemMessage(
+                    "You are a support assistant. The user's request was ambiguous. "
+                    "Ask one short, friendly clarifying question so you can help them correctly. "
+                    "Do not use markdown or bullet points."
+                ),
+                HumanMessage(
+                    f"The user said: \"{user_text}\"\n"
+                    f"My best guess at their intent was: {intent_guess}\n"
+                    "Write a single clarifying question."
+                ),
+            ]
+        )
+        result = response.content
+    except Exception:
+        logger.exception("Clarify node failed")
+        result = "Could you clarify what you'd like me to do? I want to make sure I help you correctly."
+    return {"result": result, "sources": [], "sql_query": "", "data": []}
 
 
 def fallback_node(state: AgentState) -> dict:
@@ -175,6 +216,7 @@ def build_graph(checkpointer=None):
     builder = StateGraph(AgentState)
     builder.add_node("validate", validate_input)
     builder.add_node("classify", classify_intent)
+    builder.add_node("clarify", clarify_node)
     builder.add_node("sql_agent", sql_node)
     builder.add_node("rag_agent", rag_node)
     builder.add_node("action_agent", action_node)
@@ -193,6 +235,7 @@ def build_graph(checkpointer=None):
         "classify",
         route,
         {
+            "clarify": "clarify",
             "sql": "sql_agent",
             "rag": "rag_agent",
             "action": "action_agent",
@@ -201,7 +244,7 @@ def build_graph(checkpointer=None):
             "fallback": "fallback",
         },
     )
-    for node in ["sql_agent", "rag_agent", "action_agent", "hybrid_agent", "general", "fallback"]:
+    for node in ["clarify", "sql_agent", "rag_agent", "action_agent", "hybrid_agent", "general", "fallback"]:
         builder.add_edge(node, "format")
     builder.add_edge("format", END)
 

@@ -1,4 +1,4 @@
-"""Streamlit chat frontend for the Dispatch AI support agent."""
+"""Streamlit chat frontend for Otto, the internal support assistant."""
 
 from __future__ import annotations
 
@@ -26,19 +26,89 @@ SYNC_CHAT_ENDPOINT = f"{API_URL}/chat"
 HISTORY_ENDPOINT = f"{API_URL}/sessions"
 
 st.set_page_config(
-    page_title="Dispatch AI",
+    page_title="Otto",
     page_icon="🤖",
     layout="centered",
     initial_sidebar_state="expanded",
 )
 
-st.title("🤖 Dispatch AI — Support Agent")
+st.title("🤖 Otto - Internal Support Assistant")
+
+st.markdown(
+    """
+    <style>
+    /* Hide "Shift+Enter to apply" hint in chat input */
+    [data-testid="InputInstructions"] {
+        display: none !important;
+    }
+    /* User chat bubble — blue */
+    [data-testid="stChatMessageAvatarUser"] {
+        background-color: #1d84b5 !important;
+    }
+    /* Assistant chat bubble — green */
+    [data-testid="stChatMessageAvatarAssistant"] {
+        background-color: #16a34a !important;
+    }
+    /* Chat input focus ring — blue */
+    [data-baseweb="textarea"]:focus-within {
+        border-color: #1d84b5 !important;
+        box-shadow: 0 0 0 1px #1d84b5 !important;
+    }
+    /* Any remaining orange/red accent overrides */
+    .stSpinner > div {
+        border-top-color: #1d84b5 !important;
+    }
+    /* Tighten vertical spacing within chat messages */
+    .stChatMessage [data-testid="stVerticalBlock"] {
+        gap: 0.2rem !important;
+    }
+    /* Feedback textarea: fixed size, no resize, no focus ring */
+    .stChatMessage textarea {
+        resize: none !important;
+        min-height: 50px !important;
+        max-height: 50px !important;
+        font-size: 0.82rem !important;
+    }
+    .stChatMessage textarea:focus {
+        box-shadow: none !important;
+        border-color: rgba(49,51,63,0.3) !important;
+    }
+    /* Submit button: compact */
+    .stChatMessage .stButton button {
+        padding: 2px 12px !important;
+        font-size: 0.76rem !important;
+        min-height: 0 !important;
+    }
+    /* Thumb buttons: no border, transparent, fit to emoji */
+    .stChatMessage [data-testid="stBaseButton-secondary"] {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        padding: 2px 4px !important;
+        font-size: 1rem !important;
+        width: fit-content !important;
+        min-width: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+    .stChatMessage [data-testid="stBaseButton-secondary"]:hover {
+        background: transparent !important;
+    }
+    /* Pull thumb columns together */
+    .stChatMessage .stHorizontalBlock {
+        gap: 0.1rem !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 with st.sidebar:
     st.header("About")
     st.write(
-        "Dispatch AI is an intelligent support assistant that answers policy questions, "
+        "Otto is an internal support assistant that answers policy questions, "
         "surfaces real-time customer data, and takes action — from opening support tickets "
         "to checking live weather."
     )
@@ -84,7 +154,7 @@ with st.sidebar:
     }
     _CATEGORY_DESCRIPTIONS = {
         "Customer 360° Card": "Pull a complete profile for any customer — spend, orders, open tickets, refunds, and risk flags.",
-        "Knowledge Base": "Ask questions about company policies: returns, warranties, loyalty rewards, and shipping rules.",
+        "RAG / Knowledge Base": "Ask about company policies, product warranties, shipping rules, and loyalty rewards — answers pulled from the internal knowledge base.",
         "SQL / Account": "Run aggregate queries across all accounts — revenue, refund rates, top customers, open tickets.",
         "Tools & Actions": "Trigger live tools — create, update, and close support tickets; look up customers; check real-time weather.",
         "Hybrid (RAG + SQL)": "Questions that need both customer data and policy knowledge, like return or warranty eligibility.",
@@ -126,10 +196,21 @@ with st.sidebar:
 
 
 if "auto_session_id" not in st.session_state:
-    st.session_state.auto_session_id = str(uuid.uuid4())
+    params = st.query_params
+    if "session" in params:
+        st.session_state.auto_session_id = params["session"]
+    else:
+        st.session_state.auto_session_id = str(uuid.uuid4())
+        st.query_params["session"] = st.session_state.auto_session_id
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
+
+if "feedback_given" not in st.session_state:
+    st.session_state.feedback_given = {}
+
+if "feedback_pending" not in st.session_state:
+    st.session_state.feedback_pending = {}
 
 
 # Load persisted history when the session ID changes.
@@ -169,10 +250,10 @@ if "session_id" not in st.session_state or st.session_state.session_id != sessio
 
 
 _TIER_COLORS: dict[str, tuple[str, str]] = {
-    "platinum": ("#ede9fe", "#5b21b6"),
-    "gold":     ("#fef9c3", "#854d0e"),
+    "platinum": ("#dbeafe", "#1e40af"),
+    "gold":     ("#d1fae5", "#065f46"),
     "silver":   ("#f1f5f9", "#475569"),
-    "bronze":   ("#fef3c7", "#92400e"),
+    "bronze":   ("#ccfbf1", "#0f766e"),
 }
 
 
@@ -206,8 +287,8 @@ def _render_customer_card(profile: dict) -> None:
     tier = str(basic.get("loyalty_tier", "")).lower()
     bg, fg = _TIER_COLORS.get(tier, ("#f3f4f6", "#374151"))
     status = str(basic.get("account_status", "")).upper()
-    status_bg = "#d1fae5" if status == "ACTIVE" else "#fee2e2"
-    status_fg = "#065f46" if status == "ACTIVE" else "#991b1b"
+    status_bg = "#d1fae5" if status == "ACTIVE" else "#dbeafe"
+    status_fg = "#065f46" if status == "ACTIVE" else "#1e40af"
 
     # Tenure
     try:
@@ -222,18 +303,12 @@ def _render_customer_card(profile: dict) -> None:
     except ValueError:
         tenure_str = ""
 
-    # Preferred contact
-    _CONTACT_ICONS = {"email": "✉", "phone": "📞", "chat": "💬"}
-    preferred = str(basic.get("preferred_contact", ""))
-    contact_str = f"{_CONTACT_ICONS.get(preferred, '')} {preferred}".strip() if preferred else ""
-
     with st.container(border=True):
         col_name, col_badges = st.columns([2, 1])
         with col_name:
-            email = basic.get('email', '')
-            region = basic.get('region', '')
             cid = basic.get('id', '')
-            caption_parts = [p for p in [email, region, f"#{cid}", tenure_str, contact_str] if p]
+            tenure_label = f"Customer for {tenure_str}" if tenure_str else ""
+            caption_parts = [p for p in [f"#{cid}", tenure_label] if p]
             _CARD_TOOLTIP = (
                 "Customer 360° Card — a unified view assembled from all data sources: "
                 "lifetime spend, order history, open support tickets, refunds, "
@@ -269,9 +344,9 @@ def _render_customer_card(profile: dict) -> None:
 
         _STATUS_COLORS = {
             "delivered": ("#d1fae5", "#065f46"),
-            "returned":  ("#fee2e2", "#991b1b"),
+            "returned":  ("#e0e7ff", "#3730a3"),
             "shipped":   ("#dbeafe", "#1e40af"),
-            "pending":   ("#fef3c7", "#92400e"),
+            "pending":   ("#ccfbf1", "#0f766e"),
             "cancelled": ("#f3f4f6", "#374151"),
         }
 
@@ -294,7 +369,8 @@ def _render_customer_card(profile: dict) -> None:
 
         if open_tickets:
             items = "".join(
-                f"<li>{t['subject']} "
+                f"<li><span style='opacity:0.5;font-size:0.85em'>#{t.get('id', '?')}</span> "
+                f"{t['subject']} "
                 f"<span style='opacity:0.5;font-size:0.85em'>({str(t['created_at'])[:10]})</span></li>"
                 for t in ticket_list
             )
@@ -371,7 +447,27 @@ def _escape_text(text: str) -> str:
 
 
 
-def _display_message(msg: dict, idx: int) -> None:
+def _submit_feedback(idx: int, rating: str, msg: dict, session_id: str, reason: str = "") -> None:
+    st.session_state.feedback_given[idx] = rating
+    st.session_state.feedback_pending.pop(idx, None)
+    try:
+        requests.post(
+            f"{API_URL}/feedback",
+            json={
+                "session_id": session_id,
+                "question": msg.get("question", ""),
+                "reply": msg.get("content", ""),
+                "intent": msg.get("intent", ""),
+                "rating": rating,
+                "reason": reason,
+            },
+            timeout=5,
+        )
+    except Exception:
+        pass
+
+
+def _display_message(msg: dict, idx: int, session_id: str) -> None:
     with st.chat_message(msg["role"]):
         if _is_customer_profile(msg):
             _render_customer_card(msg["data"][0])
@@ -379,7 +475,8 @@ def _display_message(msg: dict, idx: int) -> None:
             st.write(_escape_text(msg["content"]))
         if msg.get("intent") and st.session_state.get("dev_mode"):
             with st.expander("Details"):
-                st.write(f"Intent: `{msg['intent']}`")
+                confidence = msg.get("confidence", 1.0)
+                st.write(f"Intent: `{msg['intent']}` · Confidence: `{confidence:.0%}`")
                 if msg.get("sources"):
                     st.caption("Sources")
                     for source in msg["sources"]:
@@ -392,14 +489,43 @@ def _display_message(msg: dict, idx: int) -> None:
                     df = pd.DataFrame(msg["data"])
                     st.dataframe(df, use_container_width=True, hide_index=True)
 
+        if msg["role"] == "assistant" and msg.get("content"):
+            existing = st.session_state.feedback_given.get(idx)
+            pending = st.session_state.feedback_pending.get(idx)
+            if existing:
+                st.caption(f"{'👍' if existing == 'up' else '👎'} Thanks for the feedback!")
+            elif pending:
+                reason_key = f"fb_reason_{idx}"
+                st.text_area(
+                    "feedback",
+                    key=reason_key,
+                    placeholder="What was wrong or missing?",
+                    label_visibility="collapsed",
+                    max_chars=500,
+                    height=50,
+                )
+                btn_col, _ = st.columns([2, 10])
+                with btn_col:
+                    st.button(
+                        "Submit", key=f"fb_submit_{idx}", type="primary", use_container_width=True,
+                        on_click=lambda i=idx, k=reason_key: _submit_feedback(i, "down", msg, session_id, reason=st.session_state.get(k, "")),
+                    )
+            else:
+                col1, col2, col3 = st.columns([1, 1, 20])
+                with col1:
+                    st.button("👍", key=f"fb_up_{idx}", on_click=_submit_feedback, args=(idx, "up", msg, session_id))
+                with col2:
+                    st.button("👎", key=f"fb_down_{idx}", on_click=lambda i=idx: st.session_state.feedback_pending.update({i: True}))
+
 
 for idx, message in enumerate(st.session_state.messages):
-    _display_message(message, idx)
+    _display_message(message, idx, session_id)
 
 
-def _handle_streaming_response(prompt: str, session_id: str) -> tuple[str, str, list[str], str, list[dict] | None]:
+def _handle_streaming_response(prompt: str, session_id: str) -> tuple[str, str, float, list[str], str, list[dict] | None]:
     reply = ""
     intent = "general"
+    confidence = 1.0
     sources: list[str] = []
     sql_query = ""
     rows: list[dict] | None = None
@@ -425,6 +551,11 @@ def _handle_streaming_response(prompt: str, session_id: str) -> tuple[str, str, 
                 data = text[5:].removeprefix(" ").replace("\\n", "\n")
                 if current_event == "intent":
                     intent = data
+                elif current_event == "confidence":
+                    try:
+                        confidence = float(data)
+                    except ValueError:
+                        pass
                 elif current_event == "source":
                     sources.append(data)
                 elif current_event == "sql_query":
@@ -437,10 +568,10 @@ def _handle_streaming_response(prompt: str, session_id: str) -> tuple[str, str, 
                 elif current_event == "done":
                     break
 
-    return reply, intent, sources, sql_query, rows
+    return reply, intent, confidence, sources, sql_query, rows
 
 
-def _handle_sync_response(prompt: str, session_id: str) -> tuple[str, str, list[str], str, list[dict] | None]:
+def _handle_sync_response(prompt: str, session_id: str) -> tuple[str, str, float, list[str], str, list[dict] | None]:
     resp = requests.post(
         SYNC_CHAT_ENDPOINT,
         json={"message": prompt, "session_id": session_id},
@@ -450,11 +581,12 @@ def _handle_sync_response(prompt: str, session_id: str) -> tuple[str, str, list[
     data = resp.json()
     reply = data.get("reply", "")
     intent = data.get("intent", "general")
+    confidence = float(data.get("confidence", 1.0))
     sources = data.get("sources", [])
     sql_query = data.get("sql_query", "")
     rows = data.get("data") or None
     st.write(_escape_text(reply))
-    return reply, intent, sources, sql_query, rows
+    return reply, intent, confidence, sources, sql_query, rows
 
 
 prompt = st.chat_input("Ask me anything...")
@@ -468,6 +600,7 @@ if prompt:
 
     reply: str = ""
     intent: str = "general"
+    confidence: float = 1.0
     sources: list[str] = []
 
     sql_query = ""
@@ -476,11 +609,11 @@ if prompt:
         try:
             with st.spinner("Thinking..."):
                 if use_streaming:
-                    reply, intent, sources, sql_query, rows = _handle_streaming_response(prompt, session_id)
+                    reply, intent, confidence, sources, sql_query, rows = _handle_streaming_response(prompt, session_id)
                 else:
-                    reply, intent, sources, sql_query, rows = _handle_sync_response(prompt, session_id)
+                    reply, intent, confidence, sources, sql_query, rows = _handle_sync_response(prompt, session_id)
         except requests.exceptions.ConnectionError:
-            reply = "Unable to reach the Dispatch AI API. Please make sure the backend is running."
+            reply = "Unable to reach the Otto API. Please make sure the backend is running."
             st.error(reply)
         except requests.exceptions.Timeout:
             reply = "The backend took too long to respond. Please try again."
@@ -492,23 +625,24 @@ if prompt:
             reply = f"Unexpected error: {exc}"
             st.error(reply)
 
-        if reply and reply != "Unable to reach the Dispatch AI API. Please make sure the backend is running.":
-            with st.expander("Details"):
-                st.write(f"Intent: `{intent}`")
-                if sources:
-                    st.caption("Sources")
-                    for source in sources:
-                        st.markdown(f"- *{source}*")
-                if sql_query:
-                    st.caption("SQL")
-                    st.code(sql_query, language="sql")
-                _is_profile = bool(rows and isinstance(rows[0], dict) and rows[0].get("basic"))
-                if rows and not _is_profile:
-                    st.caption("Query results")
-                    df = pd.DataFrame(rows)
-                    st.dataframe(df, use_container_width=True, hide_index=True)
+        if reply and reply != "Unable to reach the Otto API. Please make sure the backend is running.":
+            if st.session_state.get("dev_mode"):
+                with st.expander("Details"):
+                    st.write(f"Intent: `{intent}` · Confidence: `{confidence:.0%}`")
+                    if sources:
+                        st.caption("Sources")
+                        for source in sources:
+                            st.markdown(f"- *{source}*")
+                    if sql_query:
+                        st.caption("SQL")
+                        st.code(sql_query, language="sql")
+                    _is_profile = bool(rows and isinstance(rows[0], dict) and rows[0].get("basic"))
+                    if rows and not _is_profile:
+                        st.caption("Query results")
+                        df = pd.DataFrame(rows)
+                        st.dataframe(df, use_container_width=True, hide_index=True)
 
     st.session_state.messages.append(
-        {"role": "assistant", "content": reply, "intent": intent, "sources": sources, "sql_query": sql_query, "data": rows, "question": prompt}
+        {"role": "assistant", "content": reply, "intent": intent, "confidence": confidence, "sources": sources, "sql_query": sql_query, "data": rows, "question": prompt}
     )
     st.rerun()
