@@ -1,4 +1,4 @@
--- Practice queries for the Dispatch AI support database
+-- Practice queries for the Otto support database
 
 -- 1. List all customers with their total number of orders.
 SELECT c.id, c.name, COUNT(o.id) AS order_count

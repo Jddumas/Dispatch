@@ -83,7 +83,7 @@ Render's free/CPU tier can't run Ollama (no GPU, limited disk). The deployment s
 ```yaml
 services:
   - type: web
-    name: dispatch-api
+    name: otto-api
     env: python
     buildCommand: pip install -r requirements.txt
     startCommand: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -103,7 +103,7 @@ services:
 **Streamlit Cloud** hosts the frontend separately. It needs only one secret:
 ```toml
 # Streamlit Cloud secrets
-API_URL = "https://dispatch-api-27sb.onrender.com"
+API_URL = "https://otto-api.onrender.com"
 ```
 
 The backend and frontend are completely decoupled — Render handles the API, Streamlit Cloud handles the UI.

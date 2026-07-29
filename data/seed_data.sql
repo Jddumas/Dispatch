@@ -1,4 +1,4 @@
--- Dispatch AI seed data
+-- Otto seed data
 -- Generated automatically by data/generate_seed_data.py; do not hand-edit.
 
 DROP TABLE IF EXISTS account_notes;

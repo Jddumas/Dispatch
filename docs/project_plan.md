@@ -5,7 +5,7 @@ Here is the full plan. Select all, copy, and paste into any text editor. Save as
 
 ```
 ================================================================================
-DISPATCH AI — 12-WEEK BUILD PLAN
+OTTO — 12-WEEK BUILD PLAN
 Steady Schedule: 10-12 hrs/week
 ================================================================================
 
@@ -15,7 +15,7 @@ OVERVIEW
 Goal: Build and deploy one multi-agent AI system that covers 90% of the
 job requirements.
 
-Final Product: "Dispatch" — A deployed AI Support Agent with RAG, SQL, and
+Final Product: "Otto" — A deployed AI Support Agent with RAG, SQL, and
 API tool capabilities, complete with evaluation, monitoring, a live demo,
 and a blog post.
 

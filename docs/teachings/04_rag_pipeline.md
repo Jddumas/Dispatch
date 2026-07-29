@@ -103,7 +103,7 @@ The `RAG_DISTANCE_THRESHOLD` (default 1.0) filters out chunks that are too dissi
 
 ## What Changed vs. a Naive Approach
 
-| Naive approach | Dispatch RAG |
+| Naive approach | Otto RAG |
 |---------------|--------------|
 | Stuff all documents into the prompt | Retrieve only the top-3 relevant chunks |
 | No filtering | Distance threshold filters irrelevant results |

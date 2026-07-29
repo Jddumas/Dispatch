@@ -1,11 +1,11 @@
 services:
   - type: web
-    name: dispatch-api
+    name: otto-api
     runtime: docker
     plan: free
     region: ohio
     branch: master
-    repo: https://github.com/Jddumas/Dispatch.git
+    repo: https://github.com/Jddumas/Otto-Support-Assistant.git
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
     envVars:
@@ -25,27 +25,27 @@ services:
         value: BAAI/bge-small-en-v1.5
       - key: DATABASE_URL
         fromDatabase:
-          name: dispatch-db
+          name: otto-db
           property: connectionString
       - key: PGHOST
         fromDatabase:
-          name: dispatch-db
+          name: otto-db
           property: host
       - key: PGPORT
         fromDatabase:
-          name: dispatch-db
+          name: otto-db
           property: port
       - key: PGDATABASE
         fromDatabase:
-          name: dispatch-db
+          name: otto-db
           property: database
       - key: PGUSER
         fromDatabase:
-          name: dispatch-db
+          name: otto-db
           property: user
       - key: PGPASSWORD
         fromDatabase:
-          name: dispatch-db
+          name: otto-db
           property: password
       - key: CORS_ORIGINS
         value: "*"
@@ -59,7 +59,7 @@ services:
         value: INFO
 
 databases:
-  - name: dispatch-db
+  - name: otto-db
     databaseName: support_agent
     user: agent
     plan: free
