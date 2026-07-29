@@ -6,6 +6,8 @@ from typing import Any
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+_DATABASE_URL = os.getenv("DATABASE_URL")
+
 CONNECTION_ARGS = {
     "host": os.getenv("PGHOST", "localhost"),
     "port": int(os.getenv("PGPORT", "5432")),
@@ -17,6 +19,8 @@ CONNECTION_ARGS = {
 
 def get_connection():
     """Return a new psycopg2 connection configured from environment variables."""
+    if _DATABASE_URL:
+        return psycopg2.connect(_DATABASE_URL, cursor_factory=RealDictCursor)
     return psycopg2.connect(**CONNECTION_ARGS, cursor_factory=RealDictCursor)
 
 
