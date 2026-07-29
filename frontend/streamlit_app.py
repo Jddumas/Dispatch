@@ -97,12 +97,12 @@ with st.sidebar:
             "How many orders were placed last month?",
         ],
         "Tools & Actions": [
-            "Look up order 100",
-            "Find the customer with email sarah.chen@example.com",
-            "Close ticket 81 with note: replacement shipped",
-            "Update ticket 82 status to in_progress",
-            "What is the weather in Paris?",
+            "Find the customer with email marcus.johnson@example.com",
+            "Look up order 103",
             "Create a support ticket for customer 52 about order 103",
+            "Update ticket 82 status to in progress",
+            "Close ticket 82 with note: replacement shipped to customer",
+            "What is the weather in Paris?",
         ],
         "Hybrid (RAG + SQL)": [
             "Is Sarah Chen's last order still eligible for a return?",
@@ -115,7 +115,7 @@ with st.sidebar:
         "Customer 360° Card": "Pull a complete profile for any customer — spend, orders, open tickets, refunds, and risk flags.",
         "Knowledge Base": "Ask questions about company policies: returns, warranties, loyalty rewards, and shipping rules.",
         "SQL / Account": "Run aggregate queries across all accounts — revenue, refund rates, top customers, open tickets.",
-        "Tools & Actions": "Trigger live tools — look up orders, create or update support tickets, check weather.",
+        "Tools & Actions": "Full ticket lifecycle demo — find a customer, look up their order, open a ticket, update it, and close it with a resolution note.",
         "Hybrid (RAG + SQL)": "Questions that need both customer data and policy knowledge, like return or warranty eligibility.",
     }
     for category, questions in example_questions.items():

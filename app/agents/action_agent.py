@@ -49,43 +49,49 @@ def _execute_tool(tool_call: dict) -> ToolMessage:
 
 def run_action_agent(question: str, messages: list[BaseMessage] | None = None) -> dict[str, str]:
     """Use LLM tool calling to choose and execute an action."""
-    try:
-        llm = get_llm(model=LLM_MODEL, temperature=0.0, max_tokens=200)
-        llm_with_tools = llm.bind_tools(TOOLS).with_retry(
-            stop_after_attempt=3, wait_exponential_jitter=True
-        )
+    llm = get_llm(model=LLM_MODEL, temperature=0.0, max_tokens=200)
+    llm_with_tools = llm.bind_tools(TOOLS)
 
-        history = build_history(messages)
-        user_content = (
-            f"Prior context:\n{history}\n\nUser request: {question}" if history
-            else f"User request: {question}"
-        )
+    history = build_history(messages)
+    user_content = (
+        f"Prior context:\n{history}\n\nUser request: {question}" if history
+        else f"User request: {question}"
+    )
 
-        invoke_messages = [
-            SystemMessage(
-                content=(
-                    "You are a helpful support assistant that can use tools. "
-                    "For the user's request you MUST choose the correct tool, call it, "
-                    "and then answer based solely on the tool result."
-                )
-            ),
-            HumanMessage(content=user_content),
-        ]
+    invoke_messages = [
+        SystemMessage(
+            content=(
+                "You are a helpful support assistant that can use tools. "
+                "For the user's request you MUST choose the correct tool, call it, "
+                "and then answer based solely on the tool result."
+            )
+        ),
+        HumanMessage(content=user_content),
+    ]
 
-        response = llm_with_tools.invoke(invoke_messages)
-        if not response.tool_calls:
-            logger.info("No tool call made; returning direct response")
-            return {"answer": response.content or "I'm not sure how to handle that request."}
-
-        logger.info("Action agent calling tool(s): %s", [tc["name"] for tc in response.tool_calls])
-        tool_messages = [_execute_tool(tc) for tc in response.tool_calls]
-        results = [tm.content for tm in tool_messages]
-        if len(results) == 1:
-            return {"answer": results[0]}
-        return {"answer": "\n\n".join(f"- {r}" for r in results)}
-    except Exception:
-        logger.exception("Action agent failed")
+    # Groq occasionally emits a malformed tool-call tag; retry up to 3 times.
+    last_exc: Exception | None = None
+    for attempt in range(3):
+        try:
+            response = llm_with_tools.invoke(invoke_messages)
+            break
+        except Exception as exc:
+            last_exc = exc
+            logger.warning("Tool call attempt %d/3 failed: %s", attempt + 1, exc)
+    else:
+        logger.exception("Action agent failed after 3 attempts", exc_info=last_exc)
         return {"answer": "I couldn't complete that action right now. Please try again later."}
+
+    if not response.tool_calls:
+        logger.info("No tool call made; returning direct response")
+        return {"answer": response.content or "I'm not sure how to handle that request."}
+
+    logger.info("Action agent calling tool(s): %s", [tc["name"] for tc in response.tool_calls])
+    tool_messages = [_execute_tool(tc) for tc in response.tool_calls]
+    results = [tm.content for tm in tool_messages]
+    if len(results) == 1:
+        return {"answer": results[0]}
+    return {"answer": "\n\n".join(f"- {r}" for r in results)}
 
 
 def action_node(state: AgentState) -> dict[str, Any]:
