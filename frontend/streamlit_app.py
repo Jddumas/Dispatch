@@ -38,9 +38,9 @@ st.title("🤖 Dispatch AI — Support Agent")
 with st.sidebar:
     st.header("About")
     st.write(
-        "Dispatch AI is a multi-agent support assistant that can answer "
-        "policy questions from a knowledge base, query a PostgreSQL database, "
-        "and perform actions like weather lookups or ticket creation."
+        "Dispatch AI is an intelligent support assistant that answers policy questions, "
+        "surfaces real-time customer data, and takes action — from opening support tickets "
+        "to checking live weather."
     )
     st.markdown("---")
 
