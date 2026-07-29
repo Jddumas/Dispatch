@@ -16,7 +16,6 @@ __pycache__/
 Thumbs.db
 
 # Local data stores (will be mounted as volumes or hosted as services)
-data/chroma/
 data/checkpoints.sqlite
 data/checkpoints.sqlite-shm
 data/checkpoints.sqlite-wal
