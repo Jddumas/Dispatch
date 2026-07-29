@@ -146,6 +146,9 @@ with st.sidebar:
         "- General Node → LLM"
     )
 
+    st.markdown("---")
+    st.checkbox("Developer mode", value=False, key="dev_mode")
+
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -446,7 +449,7 @@ def _display_message(msg: dict, idx: int) -> None:
                         if st.button("👎", key=f"down_{idx}", help="Not helpful"):
                             st.session_state[f"show_reason_{idx}"] = True
                             st.rerun()
-        if msg.get("intent"):
+        if msg.get("intent") and st.session_state.get("dev_mode"):
             with st.expander("Details"):
                 st.write(f"Intent: `{msg['intent']}`")
                 if msg.get("sources"):
