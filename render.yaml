@@ -57,6 +57,8 @@ services:
         value: 10/minute
       - key: LOG_LEVEL
         value: INFO
+      - key: SKIP_INDEXING
+        value: "true"
 
 databases:
   - name: otto-db

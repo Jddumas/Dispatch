@@ -41,23 +41,25 @@ async def lifespan(app: FastAPI):
     }
     app.state.metrics_lock = asyncio.Lock()
 
-    try:
-        from app.tools import retriever
+    import os
+    if not os.getenv("SKIP_INDEXING"):
+        try:
+            from app.tools import retriever
 
-        def _check_and_index() -> int:
-            client = retriever._get_client()
-            collection = retriever._get_collection(client)
-            if collection.count() == 0:
-                logger.info("ChromaDB collection is empty; indexing knowledge base...")
-                return retriever.index_documents()
-            logger.info("ChromaDB collection already has %s chunks; skipping index", collection.count())
-            return 0
+            def _check_and_index() -> int:
+                client = retriever._get_client()
+                collection = retriever._get_collection(client)
+                if collection.count() == 0:
+                    logger.info("ChromaDB collection is empty; indexing knowledge base...")
+                    return retriever.index_documents()
+                logger.info("ChromaDB collection already has %s chunks; skipping index", collection.count())
+                return 0
 
-        indexed = await run_in_threadpool(_check_and_index)
-        if indexed:
-            logger.info("Indexed %d knowledge-base chunks", indexed)
-    except Exception:
-        logger.exception("ChromaDB initialization failed")
+            indexed = await run_in_threadpool(_check_and_index)
+            if indexed:
+                logger.info("Indexed %d knowledge-base chunks", indexed)
+        except Exception:
+            logger.exception("ChromaDB initialization failed")
 
     yield
     # Shutdown cleanup can be added here.
