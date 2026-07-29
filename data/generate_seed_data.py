@@ -478,6 +478,116 @@ def build_sql(
     return "\n".join(lines)
 
 
+def _add_demo_personas(
+    customers: list[dict],
+    products: list[dict],
+    orders: list[dict],
+    order_items: list[dict],
+    payments: list[dict],
+    shipping: list[dict],
+    refunds: list[dict],
+    tickets: list[dict],
+    notes: list[dict],
+) -> None:
+    """Inject three hand-crafted demo personas with rich, story-telling histories.
+
+    IDs are assigned sequentially from the current max so SERIAL ids in PostgreSQL
+    match the dict ids used for cross-table references.
+    """
+    now = datetime.now(tz=timezone.utc)
+
+    # Single counters — increment each time, no gaps.
+    counters = {
+        "oid": max(o["id"] for o in orders) + 1,
+        "pid": max(p["id"] for p in payments) + 1,
+        "sid": max(s["id"] for s in shipping) + 1,
+        "rid": max(r["id"] for r in refunds) + 1,
+        "tid": max(t["id"] for t in tickets) + 1,
+        "nid": max(n["id"] for n in notes) + 1,
+    }
+
+    def _next(key: str) -> int:
+        val = counters[key]
+        counters[key] += 1
+        return val
+
+    def _order(customer_id: int, prod: dict, total: float, days_ago: int, status: str) -> int:
+        oid = _next("oid")
+        created = now - timedelta(days=days_ago)
+        orders.append({"id": oid, "customer_id": customer_id, "product_name": prod["name"],
+                       "status": status, "total": total, "created_at": created})
+        order_items.append({"order_id": oid, "product_id": prod["id"], "quantity": 1,
+                            "unit_price": total, "line_total": total})
+        pay_st = "refunded" if status == "returned" else "completed"
+        payments.append({"id": _next("pid"), "order_id": oid, "amount": total,
+                         "method": "credit_card", "status": pay_st,
+                         "created_at": created + timedelta(hours=1)})
+        if status in ("shipped", "delivered", "returned"):
+            shipped_at = created + timedelta(days=2)
+            del_at = (shipped_at + timedelta(days=3)) if status in ("delivered", "returned") else None
+            shipping.append({"id": _next("sid"), "order_id": oid, "carrier": "FedEx",
+                             "tracking_number": f"DEMO{oid:06d}",
+                             "status": "shipped" if status == "shipped" else "delivered",
+                             "shipped_at": shipped_at, "delivered_at": del_at})
+        if status == "returned":
+            refunds.append({"id": _next("rid"), "order_id": oid, "amount": total,
+                            "reason": "Not as described", "status": "completed",
+                            "created_at": created + timedelta(days=12)})
+        return oid
+
+    def _ticket(customer_id: int, order_id: int, subject: str, desc: str, days_ago: int) -> None:
+        tickets.append({"id": _next("tid"), "customer_id": customer_id, "order_id": order_id,
+                        "subject": subject, "description": desc, "status": "open",
+                        "created_at": now - timedelta(days=days_ago)})
+
+    def _note(customer_id: int, note: str, days_ago: int = 0) -> None:
+        notes.append({"id": _next("nid"), "customer_id": customer_id, "note": note,
+                      "created_at": now - timedelta(days=days_ago)})
+
+    # ── Persona 1: Sarah Chen — Platinum VIP, high spender, open warranty issue
+    customers.append({
+        "id": 51, "name": "Sarah Chen", "email": "sarah.chen@example.com",
+        "created_at": now - timedelta(days=730), "loyalty_tier": "platinum",
+        "region": "West", "account_status": "active",
+        "preferred_contact": "email", "signup_source": "referral",
+    })
+    _order(51, products[15], 499.99, 400, "delivered")   # Noise-Canceling Headphones
+    _order(51, products[6],  899.99, 200, "delivered")   # Desktop PC
+    sarah_oid = _order(51, products[4], 449.99, 14, "delivered")   # 4K Monitor (recent)
+    _ticket(51, sarah_oid, "4K Monitor has dead pixels",
+            "I received my 4K Monitor two weeks ago and noticed three dead pixels in the center. I would like a replacement.", 10)
+    _note(51, "VIP customer — platinum tier, $1,849.97 lifetime spend. Escalate any issues to senior support.", 1)
+
+    # ── Persona 2: Marcus Johnson — Gold tier, chronic issues, churn risk ──────
+    customers.append({
+        "id": 52, "name": "Marcus Johnson", "email": "marcus.johnson@example.com",
+        "created_at": now - timedelta(days=300), "loyalty_tier": "gold",
+        "region": "East", "account_status": "active",
+        "preferred_contact": "phone", "signup_source": "paid_ad",
+    })
+    m_oid1 = _order(52, products[21], 119.99, 250, "delivered")  # Mechanical Keyboard
+    m_oid2 = _order(52, products[19], 399.99, 120, "delivered")  # VR Headset
+    m_oid3 = _order(52, products[0],   59.99,  30, "returned")   # USB-C Hub
+    _ticket(52, m_oid1, "Mechanical keyboard keys sticking",
+            "Two keys on my keyboard have started sticking after 3 months of normal use.", 60)
+    _ticket(52, m_oid2, "VR Headset display flickering",
+            "The left eye display flickers intermittently. Very distracting during use.", 25)
+    _ticket(52, m_oid3, "Refund not received after 2 weeks",
+            "I returned the USB-C Hub over two weeks ago and still have not seen the refund on my account.", 15)
+    _note(52, "At-risk customer — 3 open tickets, 1 refund, multiple product complaints. Consider proactive outreach.", 5)
+
+    # ── Persona 3: Emily Torres — New bronze customer, first order in transit ──
+    customers.append({
+        "id": 53, "name": "Emily Torres", "email": "emily.torres@example.com",
+        "created_at": now - timedelta(days=12), "loyalty_tier": "bronze",
+        "region": "South", "account_status": "active",
+        "preferred_contact": "chat", "signup_source": "organic",
+    })
+    e_oid = _order(53, products[27], 99.99, 10, "shipped")  # Bluetooth Speaker
+    _ticket(53, e_oid, "Where is my order?",
+            "I ordered a Bluetooth Speaker 10 days ago and tracking shows it has been in transit for 7 days. When will it arrive?", 2)
+
+
 def main() -> None:
     customers = generate_customers(50)
     products = generate_products()
@@ -487,6 +597,8 @@ def main() -> None:
     refunds = generate_refunds(orders)
     tickets = generate_support_tickets(customers, orders)
     notes = generate_account_notes(customers)
+
+    _add_demo_personas(customers, products, orders, order_items, payments, shipping, refunds, tickets, notes)
 
     sql = build_sql(customers, products, orders, order_items, payments, shipping, refunds, tickets, notes)
     OUTPUT.write_text(sql, encoding="utf-8")

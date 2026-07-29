@@ -24,3 +24,18 @@ def last_human_message(state: AgentState) -> str:
         if isinstance(msg, HumanMessage):
             return msg.content
     return ""
+
+
+def build_history(messages: list[BaseMessage] | None, max_turns: int = 3) -> str:
+    """Format recent user questions as context for follow-up queries.
+
+    Only user messages are included — prior assistant answers can confuse
+    downstream models when rephrased as context.
+    """
+    if not messages:
+        return ""
+    recent = messages[-max_turns * 2 :]
+    user_questions = [msg.content for msg in recent if isinstance(msg, HumanMessage)]
+    if not user_questions:
+        return ""
+    return "Previous questions:\n" + "\n".join(f"- {q}" for q in user_questions[-max_turns:])

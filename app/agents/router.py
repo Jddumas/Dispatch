@@ -11,6 +11,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 
 from app.agents.action_agent import action_node
+from app.agents.hybrid_agent import hybrid_node
 from app.agents.rag_agent import rag_node
 from app.agents.sql_agent import sql_node
 from app.agents.state import AgentState, last_human_message
@@ -19,7 +20,7 @@ from app.llm import get_llm
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_INTENTS = {"sql", "rag", "action", "general"}
+ALLOWED_INTENTS = {"sql", "rag", "action", "general", "hybrid"}
 BLOCKED_KEYWORDS = ["hack", "exploit", "bypass security", "sql injection", "inject sql"]
 
 _GRAPH = None
@@ -79,15 +80,22 @@ def classify_intent(state: AgentState) -> dict:
         "- sql: questions about orders, customers, tickets, or database data\n"
         "- rag: questions about company policies, product specs, or troubleshooting\n"
         "- action: requests that require a tool such as weather, notification, or creating a ticket\n"
+        "- hybrid: questions requiring BOTH database data AND policy/product knowledge (eligibility checks, compliance questions)\n"
         "- general: greetings, small talk, or anything else\n\n"
         "Respond with exactly one lowercase word. Do not explain.\n"
-        "Allowed responses: sql, rag, action, general\n\n"
+        "Allowed responses: sql, rag, action, hybrid, general\n\n"
         "Examples:\n"
         "- 'How many orders did John place last month?' -> sql\n"
+        "- 'Tell me about Sarah Chen' -> sql\n"
+        "- 'Who is Marcus Johnson?' -> sql\n"
+        "- 'Give me a summary of customer 52' -> sql\n"
+        "- 'Give me the customer card for Emily Torres' -> sql\n"
         "- 'What is your return policy?' -> rag\n"
         "- 'How do I contact customer support?' -> rag\n"
         "- 'Send an email to support@example.com saying the order is late' -> action\n"
         "- 'What's the weather in Berlin?' -> action\n"
+        "- 'Is my order from last week still eligible for a return?' -> hybrid\n"
+        "- 'Does customer 5 qualify for a warranty claim on their last order?' -> hybrid\n"
         "- 'Hello!' -> general\n\n"
         f"Conversation history:\n{history}\n\n"
         f"Latest user message: {user_text}\n"
@@ -159,6 +167,7 @@ def build_graph(checkpointer=None):
     builder.add_node("sql_agent", sql_node)
     builder.add_node("rag_agent", rag_node)
     builder.add_node("action_agent", action_node)
+    builder.add_node("hybrid_agent", hybrid_node)
     builder.add_node("general", general_node)
     builder.add_node("fallback", fallback_node)
     builder.add_node("format", format_response)
@@ -176,11 +185,12 @@ def build_graph(checkpointer=None):
             "sql": "sql_agent",
             "rag": "rag_agent",
             "action": "action_agent",
+            "hybrid": "hybrid_agent",
             "general": "general",
             "fallback": "fallback",
         },
     )
-    for node in ["sql_agent", "rag_agent", "action_agent", "general", "fallback"]:
+    for node in ["sql_agent", "rag_agent", "action_agent", "hybrid_agent", "general", "fallback"]:
         builder.add_edge(node, "format")
     builder.add_edge("format", END)
 

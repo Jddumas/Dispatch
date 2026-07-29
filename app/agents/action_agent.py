@@ -5,9 +5,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, ToolMessage
 
-from app.agents.state import AgentState, last_human_message
+from app.agents.state import AgentState, build_history, last_human_message
 from app.config import LLM_MODEL
 from app.llm import get_llm
 from app.tools import api_client
@@ -18,6 +18,10 @@ TOOLS = [
     api_client.get_weather,
     api_client.send_notification,
     api_client.create_support_ticket,
+    api_client.lookup_order,
+    api_client.get_customer_by_email,
+    api_client.update_ticket_status,
+    api_client.close_ticket,
 ]
 
 
@@ -43,7 +47,7 @@ def _execute_tool(tool_call: dict) -> ToolMessage:
     return ToolMessage(content=str(result), tool_call_id=tool_call["id"])
 
 
-def run_action_agent(question: str) -> dict[str, str]:
+def run_action_agent(question: str, messages: list[BaseMessage] | None = None) -> dict[str, str]:
     """Use LLM tool calling to choose and execute an action."""
     try:
         llm = get_llm(model=LLM_MODEL, temperature=0.0, max_tokens=200)
@@ -51,7 +55,13 @@ def run_action_agent(question: str) -> dict[str, str]:
             stop_after_attempt=3, wait_exponential_jitter=True
         )
 
-        messages = [
+        history = build_history(messages)
+        user_content = (
+            f"Prior context:\n{history}\n\nUser request: {question}" if history
+            else f"User request: {question}"
+        )
+
+        invoke_messages = [
             SystemMessage(
                 content=(
                     "You are a helpful support assistant that can use tools. "
@@ -59,10 +69,10 @@ def run_action_agent(question: str) -> dict[str, str]:
                     "and then answer based solely on the tool result."
                 )
             ),
-            HumanMessage(content=f"User request: {question}"),
+            HumanMessage(content=user_content),
         ]
 
-        response = llm_with_tools.invoke(messages)
+        response = llm_with_tools.invoke(invoke_messages)
         if not response.tool_calls:
             logger.info("No tool call made; returning direct response")
             return {"answer": response.content or "I'm not sure how to handle that request."}
@@ -81,7 +91,7 @@ def run_action_agent(question: str) -> dict[str, str]:
 def action_node(state: AgentState) -> dict[str, Any]:
     """Run the action agent on the latest user message."""
     question = last_human_message(state)
-    result = run_action_agent(question)
+    result = run_action_agent(question, messages=state["messages"])
     return {
         "result": result["answer"],
         "sources": [],

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+from datetime import datetime, timezone
 
 import pandas as pd
 import requests
@@ -31,6 +33,36 @@ st.set_page_config(
 
 st.title("🤖 Dispatch AI — Support Agent")
 
+st.markdown(
+    """
+    <style>
+    div[data-testid="stChatMessage"] div[data-testid="stButton"] button,
+    div[data-testid="stChatMessage"] div[data-testid="stButton"] button:focus,
+    div[data-testid="stChatMessage"] div[data-testid="stButton"] button:active {
+        background: transparent !important;
+        background-color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        color: rgba(250, 250, 250, 0.22) !important;
+        font-size: 0.7rem !important;
+        padding: 0 1px !important;
+        min-height: 0 !important;
+        height: auto !important;
+        line-height: 1 !important;
+        width: auto !important;
+    }
+    div[data-testid="stChatMessage"] div[data-testid="stButton"] button:hover {
+        background: transparent !important;
+        background-color: transparent !important;
+        color: rgba(250, 250, 250, 0.6) !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 with st.sidebar:
     st.header("About")
     st.write(
@@ -42,37 +74,59 @@ with st.sidebar:
 
     st.subheader("Example questions")
     example_questions = {
-        "Customer 360°": [
-            "Tell me about customer 1",
-            "Who is Emma Smith?",
-            "Give me a summary of customer 7",
+        "Customer 360° Card": [
+            "Customer card for Sarah Chen",
+            "Customer summary for Marcus Johnson",
+            "Tell me about Emily Torres",
         ],
-        "RAG / Policy": [
+        "RAG / Knowledge Base": [
             "What is the return policy?",
-            "How do I reset my password?",
-            "What payment methods do you accept?",
+            "My package is 2 weeks late, what do I do?",
+            "Can I return an item after 30 days?",
             "How does the loyalty program work?",
-            "What is the Subscribe & Save discount?",
+            "Can I stack my loyalty points with a promo code?",
+            "What does the warranty cover?",
+            "How do I file a warranty claim?",
         ],
         "SQL / Account": [
-            "How many orders were placed last month?",
-            "What is total revenue by product category?",
+            "Which gold customers have an open ticket?",
+            "What is the refund rate by product category?",
+            "Who are the top 5 customers by lifetime spend?",
             "Which customers have an open ticket and a returned order?",
-            "Who are the top 5 customers by spend in the last 90 days?",
-            "What is the average order value?",
+            "What is total revenue by product category?",
+            "How many orders were placed last month?",
         ],
-        "Action": [
+        "Tools & Actions": [
+            "Look up order 100",
+            "Find the customer with email sarah.chen@example.com",
+            "Close ticket 81 with note: replacement shipped",
+            "Update ticket 82 status to in_progress",
             "What is the weather in Paris?",
-            "Create a support ticket for customer 2 about order 3",
-            "Send a notification to team@example.com about order 5",
+            "Create a support ticket for customer 52 about order 103",
+        ],
+        "Hybrid (cross-domain)": [
+            "Is Sarah Chen's last order still eligible for a return?",
+            "Does Marcus Johnson's last order qualify for a warranty claim?",
+            "What loyalty tier is Sarah Chen and what discount does she get?",
+            "Is Emily Torres's order eligible for a return?",
         ],
         "General": [
             "What can you do?",
             "Hello!",
         ],
     }
+    _CATEGORY_DESCRIPTIONS = {
+        "Customer 360° Card": "Pull a complete profile for any customer — spend, orders, open tickets, refunds, and risk flags.",
+        "Knowledge Base": "Ask questions about company policies: returns, warranties, loyalty rewards, and shipping rules.",
+        "SQL / Account": "Run aggregate queries across all accounts — revenue, refund rates, top customers, open tickets.",
+        "Tools & Actions": "Trigger live tools — look up orders, create or update support tickets, check weather.",
+        "Hybrid (cross-domain)": "Questions that need both customer data and policy knowledge, like return or warranty eligibility.",
+        "General": "Greetings and general questions about what the assistant can do.",
+    }
     for category, questions in example_questions.items():
         with st.expander(category, expanded=False):
+            if category in _CATEGORY_DESCRIPTIONS:
+                st.caption(_CATEGORY_DESCRIPTIONS[category])
             for i, q in enumerate(questions):
                 if st.button(q, key=f"example_{category}_{i}", use_container_width=True):
                     st.session_state.pending_prompt = q
@@ -94,6 +148,7 @@ with st.sidebar:
         "- RAG Agent → ChromaDB\n"
         "- SQL Agent → PostgreSQL\n"
         "- Action Agent → Tools / APIs\n"
+        "- Hybrid Agent → SQL + RAG → LLM\n"
         "- General Node → LLM"
     )
 
@@ -110,9 +165,225 @@ if "session_id" not in st.session_state or st.session_state.session_id != sessio
         resp = requests.get(f"{HISTORY_ENDPOINT}/{session_id}/history", timeout=5)
         if resp.status_code == 200:
             history = resp.json().get("messages", [])
+            # Re-attach profile data for customer card messages.
+            # Fetch each unique customer ID once, then apply to all matching messages.
+            profile_cache: dict[str, list] = {}
+            for msg in history:
+                if msg["role"] == "assistant":
+                    m = re.search(r"Customer 360 for .+? \(ID (\d+)\)", msg["content"])
+                    if m:
+                        cid = m.group(1)
+                        if cid not in profile_cache:
+                            try:
+                                pr = requests.post(
+                                    SYNC_CHAT_ENDPOINT,
+                                    json={"message": f"customer card for customer {cid}", "session_id": "__profile_cache__"},
+                                    timeout=15,
+                                )
+                                if pr.status_code == 200:
+                                    data = pr.json().get("data") or []
+                                    if data and isinstance(data[0], dict) and data[0].get("basic"):
+                                        profile_cache[cid] = data
+                            except requests.exceptions.RequestException:
+                                pass
+                        if cid in profile_cache:
+                            msg["data"] = profile_cache[cid]
             st.session_state.messages = history
     except requests.exceptions.RequestException:
         pass
+
+
+_TIER_COLORS: dict[str, tuple[str, str]] = {
+    "platinum": ("#ede9fe", "#5b21b6"),
+    "gold":     ("#fef9c3", "#854d0e"),
+    "silver":   ("#f1f5f9", "#475569"),
+    "bronze":   ("#fef3c7", "#92400e"),
+}
+
+
+def _is_customer_profile(msg: dict) -> bool:
+    data = msg.get("data")
+    return bool(
+        data
+        and isinstance(data, list)
+        and isinstance(data[0], dict)
+        and data[0].get("basic")
+    )
+
+
+def _render_customer_card(profile: dict) -> None:
+    basic = profile["basic"]
+    order_stats = profile["order_stats"]
+    last_order = profile.get("last_order")
+    open_tickets = int(profile["open_tickets"].get("open_count") or 0)
+    ticket_list = profile.get("open_ticket_list") or []
+    refunds = profile["refunds"]
+    last_note = profile.get("last_note")
+    last_payment = profile.get("last_payment")
+    cohort_avg = float(profile.get("cohort_avg_spend") or 0)
+
+    spend = float(order_stats.get("lifetime_spend") or 0)
+    order_count = int(order_stats.get("order_count") or 0)
+    aov = spend / order_count if order_count else 0.0
+    refund_count = int(refunds.get("refund_count") or 0)
+    refund_total = float(refunds.get("refund_total") or 0)
+
+    tier = str(basic.get("loyalty_tier", "")).lower()
+    bg, fg = _TIER_COLORS.get(tier, ("#f3f4f6", "#374151"))
+    status = str(basic.get("account_status", "")).upper()
+    status_bg = "#d1fae5" if status == "ACTIVE" else "#fee2e2"
+    status_fg = "#065f46" if status == "ACTIVE" else "#991b1b"
+
+    # Tenure
+    try:
+        created_dt = datetime.fromisoformat(str(basic.get("created_at", ""))[:10]).replace(tzinfo=timezone.utc)
+        days = (datetime.now(timezone.utc) - created_dt).days
+        if days >= 365:
+            tenure_str = f"{days // 365}y {(days % 365) // 30}m"
+        elif days >= 30:
+            tenure_str = f"{days // 30}mo"
+        else:
+            tenure_str = f"{days}d"
+    except ValueError:
+        tenure_str = ""
+
+    # Preferred contact
+    _CONTACT_ICONS = {"email": "✉", "phone": "📞", "chat": "💬"}
+    preferred = str(basic.get("preferred_contact", ""))
+    contact_str = f"{_CONTACT_ICONS.get(preferred, '')} {preferred}".strip() if preferred else ""
+
+    with st.container(border=True):
+        col_name, col_badges = st.columns([2, 1])
+        with col_name:
+            email = basic.get('email', '')
+            region = basic.get('region', '')
+            cid = basic.get('id', '')
+            caption_parts = [p for p in [email, region, f"#{cid}", tenure_str, contact_str] if p]
+            _CARD_TOOLTIP = (
+                "Customer 360° Card — a unified view assembled from all data sources: "
+                "lifetime spend, order history, open support tickets, refunds, "
+                "payment method, account notes, and computed risk flags."
+            )
+            st.markdown(
+                f"**👤 {basic.get('name', 'Unknown')}** &nbsp;"
+                f"<span title='{_CARD_TOOLTIP}' style='cursor:help;opacity:0.4;font-size:0.8rem'>ℹ</span>"
+                f"&nbsp;<span style='font-size:0.8rem;opacity:0.6'>"
+                f"{' · '.join(caption_parts)}</span>",
+                unsafe_allow_html=True,
+            )
+        with col_badges:
+            st.markdown(
+                f"<div style='text-align:right;white-space:nowrap'>"
+                f"<span style='background:{bg};color:{fg};padding:3px 10px;"
+                f"border-radius:12px;font-size:0.72rem;font-weight:600'>{tier.upper()}</span>"
+                f"&nbsp;"
+                f"<span style='background:{status_bg};color:{status_fg};padding:3px 10px;"
+                f"border-radius:12px;font-size:0.72rem;font-weight:600'>{status}</span>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+        st.markdown(
+            f"<span style='font-size:0.95rem'>"
+            f"<strong>&#36;{spend:,.2f}</strong> lifetime &nbsp;·&nbsp; "
+            f"<strong>{order_count}</strong> orders &nbsp;·&nbsp; "
+            f"<strong>&#36;{aov:,.2f}</strong> avg order"
+            f"</span>",
+            unsafe_allow_html=True,
+        )
+
+        _STATUS_COLORS = {
+            "delivered": ("#d1fae5", "#065f46"),
+            "returned":  ("#fee2e2", "#991b1b"),
+            "shipped":   ("#dbeafe", "#1e40af"),
+            "pending":   ("#fef3c7", "#92400e"),
+            "cancelled": ("#f3f4f6", "#374151"),
+        }
+
+        detail_lines = []
+
+        if last_order:
+            lo_date = str(last_order.get("created_at", ""))[:10]
+            lo_total = float(last_order.get("total") or 0)
+            lo_status = str(last_order.get("status", "")).title()
+            s_bg, s_fg = _STATUS_COLORS.get(lo_status.lower(), ("#f3f4f6", "#374151"))
+            status_badge = (
+                f"<span style='background:{s_bg};color:{s_fg};"
+                f"padding:1px 7px;border-radius:8px;font-size:0.8em;font-weight:600'>"
+                f"{lo_status}</span>"
+            )
+            detail_lines.append(
+                f"<b>Last Order:</b> {last_order.get('product_name', '—')} — "
+                f"{status_badge} — {lo_date} (${lo_total:,.2f})"
+            )
+
+        if open_tickets:
+            items = "".join(
+                f"<li>{t['subject']} "
+                f"<span style='opacity:0.5;font-size:0.85em'>({str(t['created_at'])[:10]})</span></li>"
+                for t in ticket_list
+            )
+            detail_lines.append(
+                f"<b>Support:</b> {open_tickets} open ticket(s)"
+                f"<ul style='margin:2px 0 0 0;padding-left:1.2em'>{items}</ul>"
+            )
+        else:
+            detail_lines.append("<b>Support:</b> No open tickets")
+
+        refund_str = f"{refund_count} (${refund_total:,.2f})" if refund_count else "None"
+        payment_str = (
+            str(last_payment.get("method", "")).replace("_", " ").title()
+            if last_payment else "—"
+        )
+        detail_lines.append(f"<b>Refunds:</b> {refund_str} &nbsp;|&nbsp; <b>Payment:</b> {payment_str}")
+
+        if last_note:
+            note_date = str(last_note.get("created_at", ""))[:10]
+            detail_lines.append(f"<b>Note:</b> {last_note.get('note', '')} <i>({note_date})</i>")
+
+        st.markdown(
+            "<hr style='margin:6px 0;border:none;border-top:1px solid rgba(49,51,63,0.2)'>"
+            f"<div style='font-size:0.9rem;line-height:2'>"
+            + "<br>".join(detail_lines)
+            + "</div>",
+            unsafe_allow_html=True,
+        )
+
+        # Recompute flags from structured data (mirrors _format_customer_profile logic)
+        flags: list[tuple[str, str]] = []
+        if open_tickets >= 2 and refund_count >= 1:
+            flags.append(("warning", "At-risk: multiple open tickets and refund history"))
+        elif open_tickets >= 3:
+            flags.append(("warning", "At-risk: high volume of open support tickets"))
+        if cohort_avg and spend >= cohort_avg * 2:
+            flags.append((
+                "success",
+                f"High-value: spend is {spend / cohort_avg:.1f}x the account average (${cohort_avg:,.0f})",
+            ))
+        last_order_date_str = str(order_stats.get("last_order_date") or "")
+        if last_order_date_str and last_order_date_str != "None":
+            try:
+                lo_dt = datetime.fromisoformat(last_order_date_str)
+                if lo_dt.tzinfo is None:
+                    lo_dt = lo_dt.replace(tzinfo=timezone.utc)
+                days_since = (datetime.now(timezone.utc) - lo_dt).days
+                if days_since > 180 and basic.get("account_status") == "active":
+                    flags.append(("info", f"Dormant: no purchase in {days_since} days"))
+            except ValueError:
+                pass
+
+        if flags:
+            st.markdown(
+                "<hr style='margin:6px 0;border:none;border-top:1px solid rgba(49,51,63,0.2)'>",
+                unsafe_allow_html=True,
+            )
+            for flag_type, flag_msg in flags:
+                if flag_type == "warning":
+                    st.warning(flag_msg)
+                elif flag_type == "success":
+                    st.success(flag_msg)
+                else:
+                    st.info(flag_msg)
 
 
 def _escape_text(text: str) -> str:
@@ -124,9 +395,63 @@ def _escape_text(text: str) -> str:
     return text.replace("$", "\\$").replace("_", "\\_")
 
 
-def _display_message(msg: dict) -> None:
+def _submit_feedback(msg: dict, rating: str, idx: int, reason: str = "") -> None:
+    try:
+        requests.post(
+            f"{API_URL}/feedback",
+            json={
+                "session_id": st.session_state.session_id,
+                "question": msg.get("question", ""),
+                "reply": msg["content"],
+                "intent": msg.get("intent", ""),
+                "rating": rating,
+                "reason": reason,
+            },
+            timeout=5,
+        )
+    except requests.exceptions.RequestException:
+        pass
+    st.session_state.messages[idx]["rating"] = rating
+    st.session_state.pop(f"show_reason_{idx}", None)
+    st.rerun()
+
+
+def _display_message(msg: dict, idx: int) -> None:
     with st.chat_message(msg["role"]):
-        st.write(_escape_text(msg["content"]))
+        if _is_customer_profile(msg):
+            _render_customer_card(msg["data"][0])
+        else:
+            st.write(_escape_text(msg["content"]))
+        if msg["role"] == "assistant":
+            if msg.get("rating"):
+                st.markdown(
+                    f"<span style='font-size:0.65rem;opacity:0.25'>{'👍' if msg['rating'] == 'up' else '👎'}</span>",
+                    unsafe_allow_html=True,
+                )
+            elif st.session_state.get(f"show_reason_{idx}"):
+                reason = st.text_input(
+                    "What went wrong? (optional)",
+                    key=f"reason_{idx}",
+                    placeholder="e.g. wrong answer, missing info…",
+                )
+                col1, col2 = st.columns([1, 4])
+                with col1:
+                    if st.button("Submit", key=f"reason_submit_{idx}", type="primary"):
+                        _submit_feedback(msg, "down", idx, reason=reason)
+                with col2:
+                    if st.button("Skip", key=f"reason_skip_{idx}"):
+                        _submit_feedback(msg, "down", idx)
+            else:
+                wrap, _ = st.columns([1, 9])
+                with wrap:
+                    b1, b2 = st.columns(2, gap="small")
+                    with b1:
+                        if st.button("👍", key=f"up_{idx}", help="Helpful"):
+                            _submit_feedback(msg, "up", idx)
+                    with b2:
+                        if st.button("👎", key=f"down_{idx}", help="Not helpful"):
+                            st.session_state[f"show_reason_{idx}"] = True
+                            st.rerun()
         if msg.get("intent"):
             with st.expander("Details"):
                 st.write(f"Intent: `{msg['intent']}`")
@@ -137,14 +462,14 @@ def _display_message(msg: dict) -> None:
                 if msg.get("sql_query"):
                     st.caption("SQL")
                     st.code(msg["sql_query"], language="sql")
-                if msg.get("data"):
+                if msg.get("data") and not _is_customer_profile(msg):
                     st.caption("Query results")
                     df = pd.DataFrame(msg["data"])
                     st.dataframe(df, use_container_width=True, hide_index=True)
 
 
-for message in st.session_state.messages:
-    _display_message(message)
+for idx, message in enumerate(st.session_state.messages):
+    _display_message(message, idx)
 
 
 def _handle_streaming_response(prompt: str, session_id: str) -> tuple[str, str, list[str], str, list[dict] | None]:
@@ -252,11 +577,13 @@ if prompt:
                 if sql_query:
                     st.caption("SQL")
                     st.code(sql_query, language="sql")
-                if rows:
+                _is_profile = bool(rows and isinstance(rows[0], dict) and rows[0].get("basic"))
+                if rows and not _is_profile:
                     st.caption("Query results")
                     df = pd.DataFrame(rows)
                     st.dataframe(df, use_container_width=True, hide_index=True)
 
     st.session_state.messages.append(
-        {"role": "assistant", "content": reply, "intent": intent, "sources": sources, "sql_query": sql_query, "data": rows}
+        {"role": "assistant", "content": reply, "intent": intent, "sources": sources, "sql_query": sql_query, "data": rows, "question": prompt}
     )
+    st.rerun()

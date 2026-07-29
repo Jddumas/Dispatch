@@ -25,6 +25,7 @@ class _Settings(BaseSettings):
     groq_api_key: str | None = Field(default=None, alias="GROQ_API_KEY")
     groq_verify_ssl: bool = Field(default=True, alias="GROQ_VERIFY_SSL")
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
+    openweather_api_key: str | None = Field(default=None, alias="OPENWEATHER_API_KEY")
 
     # Embedding settings
     embed_provider: str = Field(default="ollama", alias="EMBED_PROVIDER")
@@ -56,6 +57,7 @@ CLASSIFY_MODEL = settings.classify_model or settings.llm_model
 GROQ_API_KEY = settings.groq_api_key
 GROQ_VERIFY_SSL = settings.groq_verify_ssl
 OPENAI_API_KEY = settings.openai_api_key
+OPENWEATHER_API_KEY = settings.openweather_api_key
 
 EMBED_PROVIDER = settings.embed_provider
 EMBED_MODEL = settings.embed_model

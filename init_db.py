@@ -47,6 +47,29 @@ def _run_seed_sql(conn: psycopg2.extensions.connection, seed_path: Path) -> None
     conn.commit()
 
 
+def _ensure_feedback_table(conn: psycopg2.extensions.connection) -> None:
+    """Create the feedback table if it doesn't exist yet."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS feedback (
+                id SERIAL PRIMARY KEY,
+                session_id VARCHAR(200) NOT NULL,
+                question TEXT NOT NULL,
+                reply TEXT NOT NULL,
+                intent VARCHAR(50),
+                rating VARCHAR(10) NOT NULL CHECK (rating IN ('up', 'down')),
+                reason TEXT,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+            """
+        )
+        cur.execute(
+            "ALTER TABLE feedback ADD COLUMN IF NOT EXISTS reason TEXT"
+        )
+    conn.commit()
+
+
 def main() -> None:
     seed_path = Path(__file__).resolve().parent / "data" / "seed_data.sql"
     logger.info("Connecting to database...")
@@ -55,10 +78,12 @@ def main() -> None:
     try:
         if _already_seeded(conn):
             logger.info("Database already seeded; skipping.")
-            return
-        logger.info("Seeding database from %s", seed_path)
-        _run_seed_sql(conn, seed_path)
-        logger.info("Database seeded successfully.")
+        else:
+            logger.info("Seeding database from %s", seed_path)
+            _run_seed_sql(conn, seed_path)
+            logger.info("Database seeded successfully.")
+        _ensure_feedback_table(conn)
+        logger.info("Feedback table ready.")
     finally:
         conn.close()
 

@@ -25,7 +25,7 @@ CHROMA_HOST = os.getenv("CHROMA_HOST")
 CHROMA_PORT = int(os.getenv("CHROMA_PORT", "8000"))
 
 # Cosine distance threshold: chunks above this are considered irrelevant.
-RAG_DISTANCE_THRESHOLD = float(os.getenv("RAG_DISTANCE_THRESHOLD", "1.0"))
+RAG_DISTANCE_THRESHOLD = float(os.getenv("RAG_DISTANCE_THRESHOLD", "0.65"))
 
 
 def _get_client() -> chromadb.ClientAPI:
@@ -162,7 +162,7 @@ def retrieve(query: str, k: int = 3) -> list[dict[str, Any]]:
     return matches
 
 
-def answer(query: str, k: int = 3) -> dict[str, Any]:
+def answer(query: str, k: int = 3, conversation_history: str = "") -> dict[str, Any]:
     """Answer a question using retrieved context and the configured LLM."""
     matches = retrieve(query, k=k)
     relevant = [m for m in matches if m["distance"] <= RAG_DISTANCE_THRESHOLD]
@@ -176,6 +176,12 @@ def answer(query: str, k: int = 3) -> dict[str, Any]:
 
     context = "\n\n---\n\n".join(match["text"] for match in relevant)
 
+    history_block = (
+        f"Conversation history (for context only):\n{conversation_history}\n\n"
+        if conversation_history
+        else ""
+    )
+
     messages = [
         SystemMessage(
             content=(
@@ -186,7 +192,7 @@ def answer(query: str, k: int = 3) -> dict[str, Any]:
             )
         ),
         HumanMessage(
-            content=f"Context:\n{context}\n\nQuestion: {query}\n\nAnswer:"
+            content=f"Context:\n{context}\n\n{history_block}Question: {query}\n\nAnswer:"
         ),
     ]
 

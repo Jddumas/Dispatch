@@ -10,7 +10,7 @@ from typing import Any
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 
-from app.agents.state import AgentState, last_human_message
+from app.agents.state import AgentState, build_history, last_human_message
 from app.config import LLM_MODEL
 from app.llm import get_llm
 from app.tools import database
@@ -60,19 +60,6 @@ Do not use a trailing semicolon.
 """
 
 
-def _build_history(messages: list[BaseMessage] | None, max_turns: int = 3) -> str:
-    """Format recent user questions for follow-up context.
-
-    Assistant replies are excluded because prior natural-language answers
-    (and embedded SQL summaries) can confuse the model on the current turn.
-    """
-    if not messages:
-        return ""
-    recent = messages[-max_turns * 2 :]
-    user_questions = [msg.content for msg in recent if isinstance(msg, HumanMessage)]
-    if not user_questions:
-        return ""
-    return "Previous questions:\n" + "\n".join(f"- {q}" for q in user_questions[-max_turns:])
 
 
 def _strip_comments(sql: str) -> str:
@@ -138,7 +125,7 @@ def _format_value(value: Any) -> str:
     if isinstance(value, Decimal):
         value = float(value)
     if isinstance(value, float):
-        return f"${value:,.2f}" if value > 1 else f"{value:.2f}"
+        return f"${value:,.2f}"
     return str(value)
 
 
@@ -264,7 +251,7 @@ def _format_answer(question: str, query: str, rows: list[dict[str, Any]]) -> str
 
 def run_sql_agent(question: str, messages: list[BaseMessage] | None = None) -> dict[str, Any]:
     """Generate, validate, execute, and summarize a SQL query."""
-    history = _build_history(messages)
+    history = build_history(messages)
     query = _generate_sql(question, history=history)
     safe, reason = _is_safe(query)
     if not safe:
@@ -314,6 +301,9 @@ def _parse_customer_identifier(question: str) -> tuple[str | None, str | None]:
         r"what do we know about\s+(?:the\s+)?",
         r"give me (?:a )?summary of\s+(?:the\s+)?",
         r"give me (?:info|information) on\s+(?:the\s+)?",
+        r"(?:give (?:me )?)?(?:the )?customer card for\s+",
+        r"customer summary for\s+",
+        r"(?:show|pull up|get)(?: me)?(?: the)? (?:customer )?(?:card|profile) for\s+",
     ]
     for prefix in prefixes:
         m = re.match(prefix + r"(.+)", q, re.IGNORECASE)
@@ -344,7 +334,10 @@ def _resolve_customer(identifier_type: str, value: str) -> list[dict[str, Any]]:
 
 def _build_customer_profile(customer_id: int) -> dict[str, Any]:
     """Gather a 360° view of a single customer from across all tables."""
-    basic = database.execute_query_safe("SELECT * FROM customers WHERE id = %s", (customer_id,))[0]
+    basic_rows = database.execute_query_safe("SELECT * FROM customers WHERE id = %s", (customer_id,))
+    if not basic_rows:
+        return {}
+    basic = basic_rows[0]
 
     order_stats = database.execute_query_safe(
         "SELECT COALESCE(SUM(total), 0) AS lifetime_spend, COUNT(*) AS order_count, "
@@ -364,11 +357,11 @@ def _build_customer_profile(customer_id: int) -> dict[str, Any]:
         (customer_id,),
     )[0]
 
-    ticket_subjects = database.execute_query_safe(
-        "SELECT STRING_AGG(subject, ', ') AS subjects FROM support_tickets "
-        "WHERE customer_id = %s AND status = 'open'",
+    open_ticket_rows = database.execute_query_safe(
+        "SELECT subject, created_at FROM support_tickets "
+        "WHERE customer_id = %s AND status = 'open' ORDER BY created_at DESC LIMIT 5",
         (customer_id,),
-    )[0]["subjects"]
+    )
 
     refunds = database.execute_query_safe(
         "SELECT COUNT(*) AS refund_count, COALESCE(SUM(r.amount), 0) AS refund_total "
@@ -390,20 +383,30 @@ def _build_customer_profile(customer_id: int) -> dict[str, Any]:
         (customer_id,),
     )
 
+    cohort_avg = database.execute_query_safe(
+        "SELECT COALESCE(AVG(spend), 0) AS avg_spend FROM ("
+        "  SELECT SUM(total) AS spend FROM orders "
+        "  WHERE status != 'cancelled' GROUP BY customer_id"
+        ") s",
+    )[0]
+
     return {
         "basic": basic,
         "order_stats": order_stats,
         "last_order": last_order[0] if last_order else None,
         "open_tickets": tickets,
-        "open_subjects": ticket_subjects,
+        "open_ticket_list": open_ticket_rows,
         "refunds": refunds,
         "last_note": last_note[0] if last_note else None,
         "last_payment": last_payment[0] if last_payment else None,
+        "cohort_avg_spend": float(cohort_avg["avg_spend"] or 0),
     }
 
 
 def _format_customer_profile(profile: dict[str, Any]) -> str:
     """Format a customer 360° profile as 6-10 plain-text lines."""
+    if not profile:
+        return "Customer not found."
     c = profile["basic"]
     spend = float(profile["order_stats"]["lifetime_spend"] or 0)
     order_count = profile["order_stats"]["order_count"] or 0
@@ -424,7 +427,7 @@ def _format_customer_profile(profile: dict[str, Any]) -> str:
         last_order_line = "none"
 
     open_count = profile["open_tickets"]["open_count"]
-    subjects = profile["open_subjects"]
+    subjects = ", ".join(t["subject"] for t in profile.get("open_ticket_list", []))
     if open_count:
         support_line = f"{open_count} open ticket(s)"
         if subjects:
@@ -455,6 +458,22 @@ def _format_customer_profile(profile: dict[str, Any]) -> str:
         note = profile["last_note"]
         note_date = note["created_at"].strftime("%Y-%m-%d")
         lines.append(f"Latest note: {note['note']} ({note_date})")
+
+    flags = []
+    cohort_avg = profile.get("cohort_avg_spend", 0)
+    if open_count >= 2 and refund_count >= 1:
+        flags.append("At-risk: multiple open tickets and refund history")
+    elif open_count >= 3:
+        flags.append("At-risk: high volume of open support tickets")
+    if cohort_avg and spend >= cohort_avg * 2:
+        flags.append(f"High-value: spend is {spend / cohort_avg:.1f}x the account average (${cohort_avg:,.0f})")
+    last_order_date = profile["order_stats"].get("last_order_date")
+    if last_order_date and c["account_status"] == "active":
+        days_since = (datetime.now(timezone.utc) - last_order_date.replace(tzinfo=timezone.utc)).days
+        if days_since > 180:
+            flags.append(f"Dormant: no purchase in {days_since} days")
+    if flags:
+        lines.append("Flags: " + "; ".join(flags))
 
     return "\n".join(lines)
 

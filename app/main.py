@@ -23,6 +23,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.agents import get_thread_history, run_agent, setup_logging
 from app.config import API_RATE_LIMIT, CORS_ORIGINS, TOKEN_COST_PER_1K
+from app.tools import database
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -103,6 +104,15 @@ class ChatRequest(BaseModel):
     session_id: str = "default"
 
 
+class FeedbackRequest(BaseModel):
+    session_id: str
+    question: str
+    reply: str
+    intent: str = ""
+    rating: str = Field(..., pattern="^(up|down)$")
+    reason: str = ""
+
+
 class ChatResponse(BaseModel):
     reply: str
     intent: str
@@ -157,19 +167,53 @@ async def health() -> dict[str, str]:
 @app.get("/metrics")
 @limiter.limit("60/minute")
 async def metrics(request: Request) -> dict[str, Any]:
-    """Return aggregate request, latency, token, and cost metrics."""
+    """Return aggregate request, latency, token, cost, and feedback metrics."""
     m = request.app.state.metrics
     async with request.app.state.metrics_lock:
         total = m["total_requests"]
         avg_latency = m["total_latency"] / total if total else 0.0
         cost = (m["total_tokens"] / 1000) * m["cost_per_1k_tokens"]
-        return {
-            "total_requests": total,
-            "average_latency_seconds": round(avg_latency, 3),
-            "total_tokens": m["total_tokens"],
-            "cost_estimate_usd": round(cost, 6),
-            "intent_counts": dict(m["intent_counts"]),
-        }
+
+    try:
+        rows = await run_in_threadpool(
+            database.execute_query_safe,
+            "SELECT rating, COUNT(*) AS cnt FROM feedback GROUP BY rating",
+        )
+        counts = {r["rating"]: int(r["cnt"]) for r in rows}
+        total_feedback = sum(counts.values())
+        thumbs_up_rate = (
+            round(100 * counts.get("up", 0) / total_feedback, 1) if total_feedback else None
+        )
+    except Exception:
+        logger.warning("Could not fetch feedback stats")
+        total_feedback = 0
+        thumbs_up_rate = None
+
+    return {
+        "total_requests": total,
+        "average_latency_seconds": round(avg_latency, 3),
+        "total_tokens": m["total_tokens"],
+        "cost_estimate_usd": round(cost, 6),
+        "intent_counts": dict(m["intent_counts"]),
+        "feedback_total": total_feedback,
+        "thumbs_up_rate_percent": thumbs_up_rate,
+    }
+
+
+@app.post("/feedback", status_code=204)
+@limiter.limit("60/minute")
+async def submit_feedback(request: Request, payload: FeedbackRequest) -> None:
+    """Record a thumbs-up or thumbs-down rating for an assistant reply."""
+    try:
+        await run_in_threadpool(
+            database.execute_query,
+            "INSERT INTO feedback (session_id, question, reply, intent, rating, reason) VALUES (%s, %s, %s, %s, %s, %s)",
+            (payload.session_id, payload.question, payload.reply, payload.intent, payload.rating, payload.reason or None),
+            fetch=False,
+        )
+    except Exception as exc:
+        logger.exception("Failed to store feedback")
+        raise HTTPException(status_code=500, detail="Failed to store feedback") from exc
 
 
 @app.post("/chat", response_model=ChatResponse)
