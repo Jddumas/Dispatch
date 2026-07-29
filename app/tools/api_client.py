@@ -65,9 +65,19 @@ def create_support_ticket(
 ) -> str:
     """Create a support ticket in the database.
 
+    customer_id may be a numeric ID or a customer name (e.g. 'Marcus Johnson').
     Use this when the user asks to open, create, or file a support ticket.
     """
-    customer_id = int(customer_id)
+    if not str(customer_id).strip().lstrip("-").isdigit():
+        rows = database.execute_query_safe(
+            "SELECT id, name FROM customers WHERE name ILIKE %s LIMIT 1",
+            (f"%{customer_id}%",),
+        )
+        if not rows:
+            return f"No customer found matching '{customer_id}'."
+        customer_id = rows[0]["id"]
+    else:
+        customer_id = int(customer_id)
     order_id = int(order_id) if order_id is not None else None
     rows = database.execute_query(
         """

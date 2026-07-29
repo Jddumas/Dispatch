@@ -97,11 +97,11 @@ with st.sidebar:
             "How many orders were placed last month?",
         ],
         "Tools & Actions": [
-            "Find the customer with email marcus.johnson@example.com",
-            "Look up order 103",
-            "Create a support ticket for customer 52 about order 103",
+            "Create a support ticket for Marcus Johnson about a damaged item",
             "Update ticket 82 status to in progress",
             "Close ticket 82 with note: replacement shipped to customer",
+            "Find the customer with email marcus.johnson@example.com",
+            "Look up order 103",
             "What is the weather in Paris?",
         ],
         "Hybrid (RAG + SQL)": [
