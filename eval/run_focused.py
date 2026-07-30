@@ -1,9 +1,10 @@
 """Focused eval runner — runs a subset of test cases by ID.
 
 Usage:
-    python eval/run_focused.py                          # default failing cases
+    python eval/run_focused.py                          # re-run last failing cases
     python eval/run_focused.py hybrid-01 hybrid-03      # specific IDs
     python eval/run_focused.py --category hybrid        # all cases in a category
+    python eval/run_focused.py --failing                # auto-detect from latest results
     python eval/run_focused.py --all                    # all cases (same as run_eval.py)
 """
 
@@ -19,24 +20,37 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.agents import run_agent, setup_logging
 from app.tools import database
-from eval.run_eval import CASES_PATH, evaluate_case
+from eval.run_eval import CASES_PATH, RESULTS_DIR, evaluate_case
 
 logger = logging.getLogger(__name__)
 
-# Cases that were failing / under review — update this list as needed.
-DEFAULT_IDS = [
-    "hybrid-01",
-    "hybrid-02",
-    "hybrid-03",
-    "hybrid-04",
-]
+
+def _failing_ids_from_latest_results() -> list[str]:
+    """Return IDs of cases that failed any check in the most recent eval run."""
+    if not RESULTS_DIR.exists():
+        return []
+    result_files = sorted(RESULTS_DIR.glob("eval_*.json"))
+    if not result_files:
+        return []
+    latest = json.loads(result_files[-1].read_text())
+    failing = []
+    for r in latest["results"]:
+        checks = [r["intent_ok"], r["keyword_ok"]]
+        if r["query_ok"] is not None:
+            checks.append(r["query_ok"])
+        if r["sources_ok"] is not None:
+            checks.append(r["sources_ok"])
+        if r["tool_ok"] is not None:
+            checks.append(r["tool_ok"])
+        if not all(checks) or r["error"]:
+            failing.append(r["id"])
+    return failing
 
 
 def main() -> None:
     setup_logging(logging.WARNING)
 
     args = sys.argv[1:]
-
     all_cases = json.loads(CASES_PATH.read_text())
 
     if "--all" in args:
@@ -45,10 +59,16 @@ def main() -> None:
         idx = args.index("--category")
         category = args[idx + 1]
         target_ids = [c["id"] for c in all_cases if c["category"] == category]
+    elif "--failing" in args:
+        target_ids = _failing_ids_from_latest_results()
+        if not target_ids:
+            print("No failing cases found in latest results (or no results yet).")
+            sys.exit(0)
     elif args:
-        target_ids = args
+        target_ids = [a for a in args if not a.startswith("--")]
     else:
-        target_ids = DEFAULT_IDS
+        # Default: auto-detect failures from the latest run, or run all if no results.
+        target_ids = _failing_ids_from_latest_results() or [c["id"] for c in all_cases]
 
     cases = [c for c in all_cases if c["id"] in target_ids]
     if not cases:
@@ -67,12 +87,12 @@ def main() -> None:
         print(f"  A: {result['reply'][:400]}")
         if result.get("error"):
             print(f"  ERROR: {result['error']}")
-        expected_kw = case.get("expected_keywords", [])
-        if expected_kw:
-            found = [kw for kw in expected_kw if kw.lower() in result["reply"].lower()]
-            missing = [kw for kw in expected_kw if kw.lower() not in result["reply"].lower()]
-            if missing:
-                print(f"  Missing keywords: {missing}")
+        missing = [
+            kw for kw in case.get("expected_keywords", [])
+            if kw.lower() not in result["reply"].lower()
+        ]
+        if missing:
+            print(f"  Missing keywords: {missing}")
         print()
         time.sleep(1)
 

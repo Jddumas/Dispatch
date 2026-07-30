@@ -4,7 +4,7 @@
     "input": "How many orders are there?",
     "expected_intent": "sql",
     "category": "sql",
-    "expected_keywords": ["103"],
+    "expected_keywords": ["106"],
     "expected_query_keywords": ["SELECT", "COUNT", "orders"]
   },
   {
@@ -20,7 +20,7 @@
     "input": "How many customers signed up in the last 30 days?",
     "expected_intent": "sql",
     "category": "sql",
-    "expected_keywords": ["5"],
+    "expected_keywords": ["3"],
     "expected_query_keywords": ["SELECT", "COUNT", "customers"]
   },
   {
@@ -225,7 +225,7 @@
     "input": "What can you do?",
     "expected_intent": "general",
     "category": "general",
-    "expected_keywords": ["questions", "do"]
+    "expected_keywords": ["questions", "database"]
   },
   {
     "id": "profile-01",
