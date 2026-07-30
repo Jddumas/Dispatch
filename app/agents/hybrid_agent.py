@@ -62,37 +62,68 @@ def hybrid_node(state: AgentState) -> dict[str, Any]:
     today = date.today()
     today_str = today.isoformat()
 
-    # Pre-compute elapsed days so the LLM doesn't need to do date math.
-    elapsed_note = ""
-    date_match = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", db_answer)
-    if date_match:
+    # Derive eligibility ruling in Python so the LLM only has to explain it.
+    status_match = re.search(r"\bstatus\s*=\s*(\w+)", db_answer)
+    order_status = status_match.group(1).lower() if status_match else ""
+
+    delivered_match = re.search(r"\bdelivered_at\s*=\s*(\S+)", db_answer)
+    delivered_val = delivered_match.group(1).lower().rstrip(".,") if delivered_match else ""
+    delivered_available = delivered_val not in ("", "n/a", "null", "none")
+
+    elapsed_days: int | None = None
+    ref_date: date | None = None
+    # Use delivered_at for returns; fall back to first date found for warranty.
+    date_src = delivered_val if delivered_available else None
+    if not date_src:
+        m = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", db_answer)
+        date_src = m.group(1) if m else None
+    if date_src:
         try:
-            ref_date = datetime.strptime(date_match.group(1), "%Y-%m-%d").date()
+            ref_date = datetime.strptime(date_src[:10], "%Y-%m-%d").date()
             elapsed_days = (today - ref_date).days
-            elapsed_note = f"\n\nPre-computed: {elapsed_days} days have elapsed since {ref_date} (today is {today_str})."
         except ValueError:
-            elapsed_note = ""
+            pass
+
+    if order_status in ("returned", "refunded", "cancelled"):
+        ruling = f"Not eligible — this order has already been {order_status}."
+    elif not delivered_available and order_status in ("shipped", "processing", "pending"):
+        ruling = (
+            "Not yet eligible — the order has not been delivered yet. "
+            "The return window starts on the delivery date."
+        )
+    elif not delivered_available:
+        ruling = "Cannot determine eligibility — delivery date not recorded."
+    else:
+        ruling = None  # LLM will apply the policy window to elapsed_days
 
     try:
-        synthesis_prompt = (
-            f"Today's date: {today_str}\n\n"
-            f"Database result:\n{db_answer}{elapsed_note}\n\n"
-            f"Policy/product context:\n{rag_context or 'No relevant policy context found.'}\n\n"
-            f"Question: {question}\n\n"
-            "Using the pre-computed elapsed days above and the policy window from the policy context, "
-            "answer whether the customer is eligible. Follow these rules in order:\n"
-            "1. If the order status is 'returned', 'refunded', or 'cancelled', say "
-            "'Not eligible — this order has already been returned/refunded/cancelled.' "
-            "Do not evaluate dates for these orders.\n"
-            "2. If delivered_at is N/A and the order status is 'shipped', 'processing', or 'pending', "
-            "say 'Not yet eligible — the order has not been delivered yet. "
-            "The return window starts on the delivery date.'\n"
-            "3. If delivered_at is N/A for an order that appears delivered, say "
-            "'Cannot determine eligibility — delivery date not recorded.'\n"
-            "4. If elapsed days < policy window (e.g. < 30 for returns, < 365 for warranty), say 'Yes, eligible.'\n"
-            "5. If elapsed days >= policy window, say 'No, not eligible.'\n"
-            "After your opening phrase, explain with the relevant dates and policy rule. Do not use markdown."
-        )
+        if ruling:
+            synthesis_prompt = (
+                f"Today's date: {today_str}\n\n"
+                f"Database result:\n{db_answer}\n\n"
+                f"Policy/product context:\n{rag_context or 'No relevant policy context found.'}\n\n"
+                f"Question: {question}\n\n"
+                f"Ruling: {ruling}\n\n"
+                "Explain this ruling to the customer using the relevant details from the database result "
+                "and the applicable policy rule. Do not contradict the ruling. Do not use markdown."
+            )
+        else:
+            elapsed_note = (
+                f"\n\nPre-computed: {elapsed_days} days have elapsed since {ref_date} (today is {today_str})."
+                if elapsed_days is not None else ""
+            )
+            synthesis_prompt = (
+                f"Today's date: {today_str}\n\n"
+                f"Database result:\n{db_answer}{elapsed_note}\n\n"
+                f"Policy/product context:\n{rag_context or 'No relevant policy context found.'}\n\n"
+                f"Question: {question}\n\n"
+                "Using the pre-computed elapsed days and the policy window from the policy context, "
+                "answer whether the customer is eligible. "
+                "If elapsed days < policy window (e.g. < 30 for returns, < 365 for warranty), say 'Yes, eligible.' "
+                "If elapsed days >= policy window, say 'No, not eligible.' "
+                "After your opening phrase, explain with the date, elapsed days, and policy rule. "
+                "Do not use markdown."
+            )
         llm = get_llm(model=LLM_MODEL, temperature=0.0, max_tokens=400)
         response = llm.invoke(
             [
