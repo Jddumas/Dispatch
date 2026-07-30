@@ -30,8 +30,11 @@ def hybrid_node(state: AgentState) -> dict[str, Any]:
     if any(kw in question.lower() for kw in _ELIGIBILITY_KEYWORDS):
         sql_question = (
             question
-            + " Select the order's product_name, created_at, status, and total."
-            + " Use LEFT JOIN shipping sh ON sh.order_id = o.id to also get sh.delivered_at."
+            + " Return the customer's most recent non-cancelled order with these columns:"
+            + " o.id AS order_id, o.product_name, o.created_at, o.status, o.total, sh.delivered_at."
+            + " Use LEFT JOIN shipping sh ON sh.order_id = o.id."
+            + " Do NOT filter by sh.delivered_at or sh.status — include orders that have not yet been delivered."
+            + " Order by o.created_at DESC LIMIT 1."
         )
     try:
         sql_result = run_sql_agent(sql_question, messages=messages)
@@ -77,11 +80,18 @@ def hybrid_node(state: AgentState) -> dict[str, Any]:
             f"Policy/product context:\n{rag_context or 'No relevant policy context found.'}\n\n"
             f"Question: {question}\n\n"
             "Using the pre-computed elapsed days above and the policy window from the policy context, "
-            "answer whether the customer is eligible. "
-            "If elapsed days < policy window (e.g. < 30 for returns, < 365 for warranty), say 'Yes, eligible.' "
-            "If elapsed days >= policy window, say 'No, not eligible.' "
-            "If the date is missing (N/A), say 'Cannot determine eligibility — delivery date not available.' "
-            "After your opening phrase, explain with the date, elapsed days, and policy rule. Do not use markdown."
+            "answer whether the customer is eligible. Follow these rules in order:\n"
+            "1. If the order status is 'returned', 'refunded', or 'cancelled', say "
+            "'Not eligible — this order has already been returned/refunded/cancelled.' "
+            "Do not evaluate dates for these orders.\n"
+            "2. If delivered_at is N/A and the order status is 'shipped', 'processing', or 'pending', "
+            "say 'Not yet eligible — the order has not been delivered yet. "
+            "The return window starts on the delivery date.'\n"
+            "3. If delivered_at is N/A for an order that appears delivered, say "
+            "'Cannot determine eligibility — delivery date not recorded.'\n"
+            "4. If elapsed days < policy window (e.g. < 30 for returns, < 365 for warranty), say 'Yes, eligible.'\n"
+            "5. If elapsed days >= policy window, say 'No, not eligible.'\n"
+            "After your opening phrase, explain with the relevant dates and policy rule. Do not use markdown."
         )
         llm = get_llm(model=LLM_MODEL, temperature=0.0, max_tokens=400)
         response = llm.invoke(

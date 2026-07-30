@@ -99,6 +99,10 @@ def classify_intent(state: AgentState) -> dict:
         "- 'My package is 2 weeks late, what do I do?' -> rag\n"
         "- 'What does the warranty cover?' -> rag\n"
         "- 'How do I contact customer support?' -> rag\n"
+        "- 'How do I reset my password?' -> rag\n"
+        "- 'How do I return an item?' -> rag\n"
+        "- 'How do I file a warranty claim?' -> rag\n"
+        "NOTE: 'How do I...' questions ask for instructions and are always rag, not action.\n"
         "- 'Look up order 100' -> action\n"
         "- 'Find the customer with email john@example.com' -> action\n"
         "- 'Create a support ticket for customer 5' -> action\n"
@@ -192,8 +196,12 @@ def general_node(state: AgentState) -> dict:
             [
                 SystemMessage(
                     content=(
-                        "You are a helpful support assistant. Answer in plain text "
-                        "sentences and paragraphs; do not use markdown formatting, "
+                        "You are a helpful support assistant for an e-commerce company. "
+                        "You can look up customer, order, ticket, and payment data from the database; "
+                        "answer questions about return policy, shipping, warranty, loyalty program, and other company policies; "
+                        "take actions like creating support tickets, sending notifications, and checking the weather; "
+                        "and answer questions that combine customer data with policy rules such as return or warranty eligibility. "
+                        "Answer in plain text sentences and paragraphs; do not use markdown formatting, "
                         "bold markers, or numbered lists."
                     )
                 ),

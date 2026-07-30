@@ -278,6 +278,40 @@ otto/
 └── AGENTS.md                # Agent rules and dev notes
 ```
 
+## Running the Test Suite
+
+Otto ships with two complementary test layers:
+
+### 1. Unit tests (`pytest`)
+
+Fast, mocked, no external services. Run in under a second — safe for CI.
+
+```bash
+python -m pytest tests/ -v
+```
+
+Covers: API endpoints, retriever chunking, router intent classification, SQL safety guards, and answer formatting.
+
+### 2. End-to-end evaluation (`eval/run_eval.py`)
+
+Runs every case in `eval/test_cases.json` through the real agent — real Groq calls, real ChromaDB retrieval, real PostgreSQL queries. Takes 1–2 minutes and consumes API credits.
+
+```bash
+python -m eval.run_eval
+```
+
+The runner **resets the database from `data/seed_data.sql` before and after** the run, so destructive test cases (creating tickets, updating/closing ticket 82, etc.) always start from and return to a clean state. Results are saved to `eval/results/eval_<timestamp>.json` and a summary is printed to stdout.
+
+Every example question in the Streamlit sidebar has a matching case in `test_cases.json` across five categories: Customer 360°, RAG, SQL, Actions, and Hybrid.
+
+### Resetting the demo manually
+
+The `POST /admin/reset-db` endpoint (rate-limited 5/min) re-seeds Postgres on demand. The Streamlit UI calls it automatically on every fresh page load, and the sidebar's **Reset demo** button triggers it mid-session.
+
+```bash
+curl -X POST http://localhost:8000/admin/reset-db
+```
+
 ## License
 
 MIT — feel free to fork and adapt for your own projects.

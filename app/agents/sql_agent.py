@@ -55,7 +55,8 @@ Use DATE_TRUNC('month', created_at) to group by month.
 Filter by date with created_at >= NOW() - INTERVAL '30 days' for recent time windows.
 Use ILIKE with customer names when matching by name is needed.
 Always alias ambiguous ID columns with descriptive names (e.g., t.id AS ticket_id, c.id AS customer_id, o.id AS order_id).
-When the question involves orders, always include o.id AS order_id in the SELECT. When it involves tickets, always include t.id AS ticket_id.
+When fetching individual order records, include o.id AS order_id in the SELECT. When fetching individual ticket records, include t.id AS ticket_id.
+Do NOT include id columns in SELECT or GROUP BY when the question asks for totals, averages, counts, or rates grouped by a dimension (e.g. "by category", "per region") — only group by that dimension.
 When asked for a "refund rate", calculate it as: ROUND(100.0 * COUNT(DISTINCT r.order_id) / COUNT(DISTINCT o.id), 1) AS refund_rate_pct, grouping by the relevant dimension. Join orders with refunds using LEFT JOIN refunds r ON r.order_id = o.id WHERE r.status = 'completed'.
 Return ONLY the SQL query, nothing else.
 Only use SELECT or WITH statements.
@@ -183,7 +184,11 @@ def _format_sql_answer(question: str, rows: list[dict[str, Any]]) -> str:
     if "how many" in q or "number of" in q or (len(keys) == 1 and ("count" in keys[0].lower() or "total" in keys[0].lower())):
         if len(rows) == 1:
             value = rows[0][keys[0]]
-            return f"There are {_format_value(value)} {cleaned}."
+            # Strip passive constructions ("were placed", "were created", etc.) so the
+            # label reads naturally: "orders last month" not "orders were placed last month".
+            import re as _re
+            label = _re.sub(r"\b(?:were|was|have been|has been)\s+\w+(?:ed|en)\b\s*", "", cleaned).strip()
+            return f"There are {_format_value(value)} {label}."
         return f"There are {len(rows)} {cleaned}."
 
     # Average / aggregate single-value queries

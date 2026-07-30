@@ -1,12 +1,15 @@
 """PostgreSQL database utilities for the Otto project."""
 
 import os
+from pathlib import Path
 from typing import Any
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
 _DATABASE_URL = os.getenv("DATABASE_URL")
+
+SEED_SQL_PATH = Path(__file__).resolve().parents[2] / "data" / "seed_data.sql"
 
 CONNECTION_ARGS = {
     "host": os.getenv("PGHOST", "localhost"),
@@ -44,6 +47,24 @@ def execute_query_safe(
 ) -> list[dict[str, Any]]:
     """Execute a parameterized SELECT-style query and return all rows."""
     return execute_query(query, params, fetch=True)
+
+
+def reset_seed_data() -> dict[str, int]:
+    """Re-run data/seed_data.sql, dropping and re-creating all seeded tables.
+
+    The feedback table is preserved (it is created separately by init_db.py
+    and is not referenced by seed_data.sql).
+    """
+    sql = SEED_SQL_PATH.read_text(encoding="utf-8")
+    with get_connection() as conn, conn.cursor() as cur:
+        cur.execute(sql)
+        conn.commit()
+        counts: dict[str, int] = {}
+        for table in ("customers", "orders", "support_tickets"):
+            cur.execute(f"SELECT COUNT(*) AS n FROM {table}")
+            row = cur.fetchone()
+            counts[table] = int(row["n"]) if row else 0
+    return counts
 
 
 if __name__ == "__main__":

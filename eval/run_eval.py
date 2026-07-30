@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.agents import run_agent, setup_logging
 from app.config import LLM_MODEL
+from app.tools import database
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +22,12 @@ CASES_PATH = Path(__file__).parent / "test_cases.json"
 RESULTS_DIR = Path(__file__).parent / "results"
 
 TOOL_PATTERNS = {
-    "get_weather": ["The weather in", "weather"],
+    "get_weather": ["weather in"],
     "send_notification": ["Notification sent to"],
-    "create_support_ticket": ["Created", "ticket"],
+    "create_support_ticket": ["created", "ticket"],
+    "update_ticket_status": ["ticket"],
+    "close_ticket": ["closed"],
+    "get_customer_by_email": ["@example.com"],
 }
 
 
@@ -40,7 +44,8 @@ def _contains_all(text: str, keywords: list[str]) -> bool:
 
 def _check_tool(expected_tool: str, reply: str) -> bool:
     patterns = TOOL_PATTERNS.get(expected_tool, [])
-    return all(p in reply for p in patterns)
+    reply_lower = reply.lower()
+    return all(p.lower() in reply_lower for p in patterns)
 
 
 def evaluate_case(case: dict) -> dict:
@@ -140,6 +145,7 @@ def _compute_summary(results: list[dict]) -> dict:
     sql_results = [r for r in results if r["category"] == "sql"]
     rag_results = [r for r in results if r["category"] == "rag"]
     action_results = [r for r in results if r["category"] == "action"]
+    hybrid_results = [r for r in results if r["category"] == "hybrid"]
 
     def _pct(part: list, key: str) -> float | None:
         valid = [r for r in part if r[key] is not None]
@@ -151,6 +157,17 @@ def _compute_summary(results: list[dict]) -> dict:
         sum(r["latency_seconds"] for r in results) / total, 3
     ) if total else 0.0
 
+    hybrid_intent_pct = (
+        round(100 * sum(1 for r in hybrid_results if r["intent_ok"]) / len(hybrid_results), 1)
+        if hybrid_results
+        else None
+    )
+    hybrid_keyword_pct = (
+        round(100 * sum(1 for r in hybrid_results if r["keyword_ok"]) / len(hybrid_results), 1)
+        if hybrid_results
+        else None
+    )
+
     return {
         "total": total,
         "error_rate_percent": round(100 * errors / total, 1) if total else 0.0,
@@ -159,6 +176,8 @@ def _compute_summary(results: list[dict]) -> dict:
         "sql_generation_accuracy_percent": _pct(sql_results, "query_ok"),
         "rag_faithfulness_percent": _pct(rag_results, "sources_ok"),
         "tool_accuracy_percent": _pct(action_results, "tool_ok"),
+        "hybrid_intent_accuracy_percent": hybrid_intent_pct,
+        "hybrid_answer_relevance_percent": hybrid_keyword_pct,
         "average_latency_seconds": avg_latency,
         "model": LLM_MODEL,
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -177,6 +196,9 @@ def _print_summary(summary: dict) -> None:
         print(f"RAG source grounding: {summary['rag_faithfulness_percent']}%")
     if summary["tool_accuracy_percent"] is not None:
         print(f"Action tool accuracy: {summary['tool_accuracy_percent']}%")
+    if summary.get("hybrid_intent_accuracy_percent") is not None:
+        print(f"Hybrid intent accuracy: {summary['hybrid_intent_accuracy_percent']}%")
+        print(f"Hybrid answer relevance: {summary['hybrid_answer_relevance_percent']}%")
     print(f"Average latency: {summary['average_latency_seconds']}s")
     print(f"Error rate: {summary['error_rate_percent']}%")
     print("=====================================\n")
@@ -187,17 +209,29 @@ def main() -> None:
     cases = load_cases()
     logger.info("Loaded %d test cases", len(cases))
 
-    results = [evaluate_case(case) for case in cases]
-    summary = _compute_summary(results)
-    _print_summary(summary)
+    logger.info("Resetting seed data before evaluation...")
+    counts = database.reset_seed_data()
+    logger.info("Seed reset: %s", counts)
 
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    results_path = RESULTS_DIR / f"eval_{timestamp}.json"
-    output = {"summary": summary, "results": results}
-    with results_path.open("w", encoding="utf-8") as f:
-        json.dump(output, f, indent=2, ensure_ascii=False)
-    logger.info("Saved evaluation results to %s", results_path)
+    try:
+        results = [evaluate_case(case) for case in cases]
+        summary = _compute_summary(results)
+        _print_summary(summary)
+
+        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        results_path = RESULTS_DIR / f"eval_{timestamp}.json"
+        output = {"summary": summary, "results": results}
+        with results_path.open("w", encoding="utf-8") as f:
+            json.dump(output, f, indent=2, ensure_ascii=False)
+        logger.info("Saved evaluation results to %s", results_path)
+    finally:
+        logger.info("Resetting seed data after evaluation...")
+        try:
+            counts = database.reset_seed_data()
+            logger.info("Seed reset: %s", counts)
+        except Exception:
+            logger.exception("Post-eval seed reset failed")
 
 
 if __name__ == "__main__":

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import uuid
 from datetime import datetime, timezone
 
@@ -23,7 +22,14 @@ else:
         API_URL = "http://localhost:8000"
 CHAT_ENDPOINT = f"{API_URL}/chat/stream"
 SYNC_CHAT_ENDPOINT = f"{API_URL}/chat"
-HISTORY_ENDPOINT = f"{API_URL}/sessions"
+RESET_ENDPOINT = f"{API_URL}/admin/reset-db"
+
+
+def _reset_demo_db() -> None:
+    try:
+        requests.post(RESET_ENDPOINT, timeout=15)
+    except requests.exceptions.RequestException:
+        pass
 
 st.set_page_config(
     page_title="Otto",
@@ -192,16 +198,20 @@ with st.sidebar:
     )
 
     st.markdown("---")
+    if st.button("Reset demo", use_container_width=True):
+        _reset_demo_db()
+        st.session_state.messages = []
+        st.session_state.auto_session_id = str(uuid.uuid4())
+        st.rerun()
     st.checkbox("Developer mode", value=False, key="dev_mode")
 
 
 if "auto_session_id" not in st.session_state:
-    params = st.query_params
-    if "session" in params:
-        st.session_state.auto_session_id = params["session"]
-    else:
-        st.session_state.auto_session_id = str(uuid.uuid4())
-        st.query_params["session"] = st.session_state.auto_session_id
+    # Fresh visit — new session id, reset demo DB so example questions behave
+    # consistently. Same-session interactions (button clicks, chat) preserve
+    # this UUID via st.session_state, so the reset only fires on first load.
+    st.session_state.auto_session_id = str(uuid.uuid4())
+    _reset_demo_db()
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -211,42 +221,6 @@ if "feedback_given" not in st.session_state:
 
 if "feedback_pending" not in st.session_state:
     st.session_state.feedback_pending = {}
-
-
-# Load persisted history when the session ID changes.
-if "session_id" not in st.session_state or st.session_state.session_id != session_id:
-    st.session_state.session_id = session_id
-    st.session_state.messages = []
-    try:
-        resp = requests.get(f"{HISTORY_ENDPOINT}/{session_id}/history", timeout=5)
-        if resp.status_code == 200:
-            history = resp.json().get("messages", [])
-            # Re-attach profile data for customer card messages.
-            # Fetch each unique customer ID once, then apply to all matching messages.
-            profile_cache: dict[str, list] = {}
-            for msg in history:
-                if msg["role"] == "assistant":
-                    m = re.search(r"Customer 360 for .+? \(ID (\d+)\)", msg["content"])
-                    if m:
-                        cid = m.group(1)
-                        if cid not in profile_cache:
-                            try:
-                                pr = requests.post(
-                                    SYNC_CHAT_ENDPOINT,
-                                    json={"message": f"customer card for customer {cid}", "session_id": "__profile_cache__"},
-                                    timeout=15,
-                                )
-                                if pr.status_code == 200:
-                                    data = pr.json().get("data") or []
-                                    if data and isinstance(data[0], dict) and data[0].get("basic"):
-                                        profile_cache[cid] = data
-                            except requests.exceptions.RequestException:
-                                pass
-                        if cid in profile_cache:
-                            msg["data"] = profile_cache[cid]
-            st.session_state.messages = history
-    except requests.exceptions.RequestException:
-        pass
 
 
 _TIER_COLORS: dict[str, tuple[str, str]] = {

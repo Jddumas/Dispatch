@@ -323,6 +323,19 @@ async def history(request: Request, session_id: str) -> JSONResponse:
     return JSONResponse({"session_id": session_id, "messages": messages})
 
 
+@app.post("/admin/reset-db")
+@limiter.limit("5/minute")
+async def reset_db(request: Request) -> JSONResponse:
+    """Re-seed the Postgres tables so the demo returns to a clean state."""
+    try:
+        counts = await run_in_threadpool(database.reset_seed_data)
+    except Exception as exc:
+        logger.exception("Failed to reset seed data")
+        raise HTTPException(status_code=500, detail="Failed to reset database") from exc
+
+    return JSONResponse({"reset": True, "counts": counts})
+
+
 if __name__ == "__main__":
     import uvicorn
 

@@ -240,5 +240,166 @@
     "expected_intent": "sql",
     "category": "sql",
     "expected_keywords": ["Emma Smith", "Customer 360", "Contact", "Spend"]
+  },
+  {
+    "id": "profile-03",
+    "input": "Customer card for Sarah Chen",
+    "expected_intent": "sql",
+    "category": "sql",
+    "expected_keywords": ["Sarah Chen", "Customer 360"]
+  },
+  {
+    "id": "profile-04",
+    "input": "Customer summary for Marcus Johnson",
+    "expected_intent": "sql",
+    "category": "sql",
+    "expected_keywords": ["Marcus Johnson", "Customer 360"]
+  },
+  {
+    "id": "profile-05",
+    "input": "Tell me about Emily Torres",
+    "expected_intent": "sql",
+    "category": "sql",
+    "expected_keywords": ["Emily Torres", "Customer 360"]
+  },
+  {
+    "id": "rag-12",
+    "input": "My package is 2 weeks late, what do I do?",
+    "expected_intent": "rag",
+    "category": "rag",
+    "expected_keywords": ["shipping"],
+    "expected_sources": ["Shipping Delays"]
+  },
+  {
+    "id": "rag-13",
+    "input": "Can I return an item after 30 days?",
+    "expected_intent": "rag",
+    "category": "rag",
+    "expected_keywords": ["30"],
+    "expected_sources": ["Returns"]
+  },
+  {
+    "id": "rag-14",
+    "input": "Can I stack my loyalty points with a promo code?",
+    "expected_intent": "rag",
+    "category": "rag",
+    "expected_keywords": ["loyalty"],
+    "expected_sources": ["Loyalty Program"]
+  },
+  {
+    "id": "rag-15",
+    "input": "What does the warranty cover?",
+    "expected_intent": "rag",
+    "category": "rag",
+    "expected_keywords": ["warranty"],
+    "expected_sources": ["Warranty"]
+  },
+  {
+    "id": "rag-16",
+    "input": "How do I file a warranty claim?",
+    "expected_intent": "rag",
+    "category": "rag",
+    "expected_keywords": ["warranty", "claim"],
+    "expected_sources": ["Warranty Claims"]
+  },
+  {
+    "id": "sql-10",
+    "input": "Which gold customers have an open ticket?",
+    "expected_intent": "sql",
+    "category": "sql",
+    "expected_keywords": ["gold"],
+    "expected_query_keywords": ["SELECT", "gold", "support_tickets", "open"]
+  },
+  {
+    "id": "sql-11",
+    "input": "What is the refund rate by product category?",
+    "expected_intent": "sql",
+    "category": "sql",
+    "expected_keywords": ["category"],
+    "expected_query_keywords": ["SELECT", "category", "GROUP BY"]
+  },
+  {
+    "id": "sql-12",
+    "input": "Who are the top 5 customers by lifetime spend?",
+    "expected_intent": "sql",
+    "category": "sql",
+    "expected_keywords": ["customer"],
+    "expected_query_keywords": ["SELECT", "SUM", "GROUP BY", "ORDER BY", "LIMIT"]
+  },
+  {
+    "id": "sql-13",
+    "input": "How many orders were placed last month?",
+    "expected_intent": "sql",
+    "category": "sql",
+    "expected_keywords": ["orders"],
+    "expected_query_keywords": ["SELECT", "COUNT", "orders"]
+  },
+  {
+    "id": "action-06",
+    "input": "Create a support ticket for Marcus Johnson about a damaged item",
+    "expected_intent": "action",
+    "category": "action",
+    "expected_keywords": ["Created", "ticket"],
+    "expected_tool": "create_support_ticket"
+  },
+  {
+    "id": "action-07",
+    "input": "Update ticket 82 status to in progress",
+    "expected_intent": "action",
+    "category": "action",
+    "expected_keywords": ["82"],
+    "expected_tool": "update_ticket_status"
+  },
+  {
+    "id": "action-08",
+    "input": "Close ticket 82 with note: replacement shipped to customer",
+    "expected_intent": "action",
+    "category": "action",
+    "expected_keywords": ["82", "closed"],
+    "expected_tool": "close_ticket"
+  },
+  {
+    "id": "action-09",
+    "input": "Find the customer with email marcus.johnson@example.com",
+    "expected_intent": "action",
+    "category": "action",
+    "expected_keywords": ["Marcus Johnson"],
+    "expected_tool": "get_customer_by_email"
+  },
+  {
+    "id": "action-10",
+    "input": "What is the weather in Austin?",
+    "expected_intent": "action",
+    "category": "action",
+    "expected_keywords": ["weather", "Austin"],
+    "expected_tool": "get_weather"
+  },
+  {
+    "id": "hybrid-01",
+    "input": "Is Sarah Chen's last order still eligible for a return?",
+    "expected_intent": "hybrid",
+    "category": "hybrid",
+    "expected_keywords": ["Sarah Chen"]
+  },
+  {
+    "id": "hybrid-02",
+    "input": "Does Marcus Johnson's last order qualify for a warranty claim?",
+    "expected_intent": "hybrid",
+    "category": "hybrid",
+    "expected_keywords": ["Marcus Johnson"]
+  },
+  {
+    "id": "hybrid-03",
+    "input": "What loyalty tier is Sarah Chen and what discount does she get?",
+    "expected_intent": "hybrid",
+    "category": "hybrid",
+    "expected_keywords": ["Sarah Chen", "platinum"]
+  },
+  {
+    "id": "hybrid-04",
+    "input": "Is Emily Torres's order eligible for a return?",
+    "expected_intent": "hybrid",
+    "category": "hybrid",
+    "expected_keywords": ["Emily Torres"]
   }
 ]
