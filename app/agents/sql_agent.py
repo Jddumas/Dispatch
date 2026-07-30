@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any
 
@@ -58,6 +58,7 @@ Always alias ambiguous ID columns with descriptive names (e.g., t.id AS ticket_i
 When fetching individual order records, include o.id AS order_id in the SELECT. When fetching individual ticket records, include t.id AS ticket_id.
 Do NOT include id columns in SELECT or GROUP BY when the question asks for totals, averages, counts, or rates grouped by a dimension (e.g. "by category", "per region") — only group by that dimension.
 When asked for a "refund rate", calculate it as: ROUND(100.0 * COUNT(DISTINCT r.order_id) / COUNT(DISTINCT o.id), 1) AS refund_rate_pct, grouping by the relevant dimension. Join orders with refunds using LEFT JOIN refunds r ON r.order_id = o.id WHERE r.status = 'completed'.
+There is no 'discount' column in any table. Discount rates for loyalty tiers are defined in company policy documents, not stored in the database — do not include a discount column in SQL queries.
 Return ONLY the SQL query, nothing else.
 Only use SELECT or WITH statements.
 Do not use a trailing semicolon.
@@ -135,6 +136,10 @@ def _format_value(value: Any, key: str = "") -> str:
         if any(w in k for w in ("count", "qty", "quantity", "days", "num_")):
             return f"{value:,.0f}"
         return f"${value:,.2f}"
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d")
+    if isinstance(value, date):
+        return value.isoformat()
     return str(value)
 
 
@@ -282,8 +287,17 @@ def _format_answer(question: str, query: str, rows: list[dict[str, Any]]) -> str
     return response.content.strip()
 
 
-def run_sql_agent(question: str, messages: list[BaseMessage] | None = None) -> dict[str, Any]:
-    """Generate, validate, execute, and summarize a SQL query."""
+def run_sql_agent(
+    question: str,
+    messages: list[BaseMessage] | None = None,
+    display_question: str | None = None,
+) -> dict[str, Any]:
+    """Generate, validate, execute, and summarize a SQL query.
+
+    `display_question` overrides `question` when formatting the answer, useful
+    when the caller augments `question` with hints for SQL generation but wants
+    the plain original question to drive the answer format.
+    """
     history = build_history(messages)
     query = _generate_sql(question, history=history)
     safe, reason = _is_safe(query)
@@ -305,7 +319,7 @@ def run_sql_agent(question: str, messages: list[BaseMessage] | None = None) -> d
             "answer": f"Database error: {exc}",
         }
 
-    answer = _format_sql_answer(question, rows)
+    answer = _format_sql_answer(display_question or question, rows)
     return {"query": query, "rows": rows, "answer": answer}
 
 

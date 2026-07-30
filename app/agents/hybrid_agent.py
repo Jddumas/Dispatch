@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import re
 from datetime import date, datetime
 from typing import Any
 
@@ -17,17 +16,23 @@ from app.tools.retriever import RAG_DISTANCE_THRESHOLD, retrieve
 
 logger = logging.getLogger(__name__)
 
+_ELIGIBILITY_KEYWORDS = ("eligible", "qualify", "return", "warranty", "refund")
+
 
 def hybrid_node(state: AgentState) -> dict[str, Any]:
     """Fan out to SQL + RAG, then synthesize both results with a single LLM call."""
     question = last_human_message(state)
     messages = state["messages"]
 
-    # Step 1: get structured DB data
-    # For eligibility questions, hint the SQL agent to include dates so the LLM can evaluate policy windows.
-    _ELIGIBILITY_KEYWORDS = ("eligible", "qualify", "return", "warranty", "refund")
+    is_eligibility = any(kw in question.lower() for kw in _ELIGIBILITY_KEYWORDS)
+
+    # Step 1: get structured DB data.
+    # For eligibility questions, hint the SQL agent to include shipping dates.
+    # Pass the original question as display_question so _format_sql_answer picks the
+    # right format branch (the hint appends "most recent" which would trigger the
+    # "most/top" branch and produce the wrong text format).
     sql_question = question
-    if any(kw in question.lower() for kw in _ELIGIBILITY_KEYWORDS):
+    if is_eligibility:
         sql_question = (
             question
             + " Return the customer's most recent non-cancelled order with these columns:"
@@ -37,15 +42,19 @@ def hybrid_node(state: AgentState) -> dict[str, Any]:
             + " Order by o.created_at DESC LIMIT 1."
         )
     try:
-        sql_result = run_sql_agent(sql_question, messages=messages)
+        sql_result = run_sql_agent(sql_question, messages=messages, display_question=question)
         db_answer = sql_result.get("answer", "No database result.")
-        sql_query = sql_result.get("sql_query", "")
-        data = sql_result.get("data", [])
+        sql_query = sql_result.get("query", "")
+        rows = sql_result.get("rows", [])
+        data = rows
     except Exception:
         logger.exception("Hybrid agent SQL step failed")
         db_answer = "Database lookup failed."
         sql_query = ""
+        rows = []
         data = []
+
+    db_failed = db_answer.startswith(("Database error:", "Database lookup failed."))
 
     # Step 2: retrieve policy/product context
     try:
@@ -62,39 +71,70 @@ def hybrid_node(state: AgentState) -> dict[str, Any]:
     today = date.today()
     today_str = today.isoformat()
 
-    # Derive eligibility ruling in Python so the LLM only has to explain it.
-    status_match = re.search(r"\bstatus\s*=\s*(\w+)", db_answer)
-    order_status = status_match.group(1).lower() if status_match else ""
-
-    delivered_match = re.search(r"\bdelivered_at\s*=\s*(\S+)", db_answer)
-    delivered_val = delivered_match.group(1).lower().rstrip(".,") if delivered_match else ""
-    delivered_available = delivered_val not in ("", "n/a", "null", "none")
-
-    elapsed_days: int | None = None
+    # For eligibility questions, derive a complete ruling in Python so the LLM only
+    # has to explain it in natural language — never decide eligibility itself.
+    ruling: str | None = None
     ref_date: date | None = None
-    # Use delivered_at for returns; fall back to first date found for warranty.
-    date_src = delivered_val if delivered_available else None
-    if not date_src:
-        m = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", db_answer)
-        date_src = m.group(1) if m else None
-    if date_src:
-        try:
-            ref_date = datetime.strptime(date_src[:10], "%Y-%m-%d").date()
-            elapsed_days = (today - ref_date).days
-        except ValueError:
-            pass
+    elapsed_days: int | None = None
 
-    if order_status in ("returned", "refunded", "cancelled"):
-        ruling = f"Not eligible — this order has already been {order_status}."
-    elif not delivered_available and order_status in ("shipped", "processing", "pending"):
-        ruling = (
-            "Not yet eligible — the order has not been delivered yet. "
-            "The return window starts on the delivery date."
-        )
-    elif not delivered_available:
-        ruling = "Cannot determine eligibility — delivery date not recorded."
-    else:
-        ruling = None  # LLM will apply the policy window to elapsed_days
+    if is_eligibility:
+        order_status = ""
+        delivered_available = False
+
+        if rows:
+            row = rows[0]
+            status_val = row.get("status", "")
+            order_status = str(status_val).lower() if status_val else ""
+
+            delivered_at_val = row.get("delivered_at")
+            if delivered_at_val is not None:
+                delivered_available = True
+                if hasattr(delivered_at_val, "date"):
+                    ref_date = delivered_at_val.date()
+                else:
+                    try:
+                        ref_date = datetime.strptime(str(delivered_at_val)[:10], "%Y-%m-%d").date()
+                    except ValueError:
+                        delivered_available = False
+                if delivered_available and ref_date:
+                    elapsed_days = (today - ref_date).days
+
+        if order_status in ("returned", "refunded", "cancelled"):
+            ruling = f"Not eligible — this order has already been {order_status}."
+        elif not delivered_available and order_status in ("shipped", "processing", "pending"):
+            ruling = (
+                "Not yet eligible — the order has not been delivered yet. "
+                "The return window starts on the delivery date."
+            )
+        elif not delivered_available:
+            ruling = "Cannot determine eligibility — delivery date not recorded."
+        elif elapsed_days is not None:
+            # Determine policy window from the question type.
+            if "warranty" in question.lower():
+                policy_days = 365
+                policy_label = "1-year warranty"
+            else:
+                policy_days = 30
+                policy_label = "30-day return"
+            if elapsed_days < policy_days:
+                ruling = (
+                    f"Eligible — the order was delivered {elapsed_days} days ago on {ref_date}, "
+                    f"which is within the {policy_label} window."
+                )
+            else:
+                ruling = (
+                    f"Not eligible — the order was delivered {elapsed_days} days ago on {ref_date}, "
+                    f"which exceeds the {policy_label} window."
+                )
+        else:
+            ruling = "Cannot determine eligibility — no order data available."
+
+    # Step 4: build synthesis prompt
+    _NO_GREETING = (
+        "Do not open with a greeting or the customer's name as a salutation — "
+        "respond professionally and directly. "
+        "Use the customer's name naturally within the response when relevant. "
+    )
 
     try:
         if ruling:
@@ -104,26 +144,45 @@ def hybrid_node(state: AgentState) -> dict[str, Any]:
                 f"Policy/product context:\n{rag_context or 'No relevant policy context found.'}\n\n"
                 f"Question: {question}\n\n"
                 f"Ruling: {ruling}\n\n"
-                "Explain this ruling to the customer using the relevant details from the database result "
-                "and the applicable policy rule. Do not contradict the ruling. Do not use markdown."
+                "Explain this ruling to the customer using the relevant details from the database "
+                "(product name, delivery date) and the applicable policy rule. "
+                "Do not contradict or restate the ruling ambiguously — the ruling is final. "
+                + _NO_GREETING
+                + "Do not use markdown."
             )
-        else:
-            elapsed_note = (
-                f"\n\nPre-computed: {elapsed_days} days have elapsed since {ref_date} (today is {today_str})."
-                if elapsed_days is not None else ""
-            )
+        elif is_eligibility:
+            # Fallback: should not normally reach here since ruling is always set above
             synthesis_prompt = (
                 f"Today's date: {today_str}\n\n"
-                f"Database result:\n{db_answer}{elapsed_note}\n\n"
+                f"Database result:\n{db_answer}\n\n"
                 f"Policy/product context:\n{rag_context or 'No relevant policy context found.'}\n\n"
                 f"Question: {question}\n\n"
-                "Using the pre-computed elapsed days and the policy window from the policy context, "
-                "answer whether the customer is eligible. "
-                "If elapsed days < policy window (e.g. < 30 for returns, < 365 for warranty), say 'Yes, eligible.' "
-                "If elapsed days >= policy window, say 'No, not eligible.' "
-                "After your opening phrase, explain with the date, elapsed days, and policy rule. "
-                "Do not use markdown."
+                "Answer whether the customer is eligible based on the database result and policy context. "
+                + _NO_GREETING
+                + "Do not use markdown."
             )
+        elif db_failed:
+            # Non-eligibility hybrid but DB lookup failed — answer from RAG only.
+            synthesis_prompt = (
+                f"Policy/product context:\n{rag_context or 'No relevant policy context found.'}\n\n"
+                f"Question: {question}\n\n"
+                "Answer the question using the policy context provided. Be specific and helpful. "
+                + _NO_GREETING
+                + "Do not use markdown."
+            )
+        else:
+            # Non-eligibility hybrid: combine DB data with policy/product knowledge.
+            synthesis_prompt = (
+                f"Today's date: {today_str}\n\n"
+                f"Database result:\n{db_answer}\n\n"
+                f"Policy/product context:\n{rag_context or 'No relevant policy context found.'}\n\n"
+                f"Question: {question}\n\n"
+                "Answer the question by combining the database result with the relevant policy or "
+                "product context. Be specific, helpful, and concise. "
+                + _NO_GREETING
+                + "Do not use markdown."
+            )
+
         llm = get_llm(model=LLM_MODEL, temperature=0.0, max_tokens=400)
         response = llm.invoke(
             [
